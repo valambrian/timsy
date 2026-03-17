@@ -1,0 +1,23 @@
+<html>
+<head>
+<title>Summary Time Use Report</title>
+</head>
+<body>
+<h3>Reporting Period</h3>
+
+    <table border="1">
+        <tr>
+            <th>Category</th>
+        </tr>
+
+        {% for record in records %}
+
+        <tr>
+            <td>{{ record.description }}</td>
+        </tr>
+        
+        {% endfor %}
+ 
+    </table>
+</body>
+</html>

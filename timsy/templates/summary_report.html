@@ -1,0 +1,49 @@
+{% load static %}
+
+<html>
+<head>
+  <title>Summary Time Use Report</title>
+  <link rel="stylesheet" type="text/css" href="{% static 'timsy.css' %}">
+</head>
+<body>
+<h3>{{ title }} (
+
+  {% if previous %}
+    <a href="{{ previous }}/">Previous</a>
+  {% endif %}
+
+  {% if previous and next %}
+,
+  {% endif %}
+
+  {% if next %}
+    <a href="{{ next }}/">Next</a>
+  {% endif %}
+
+)</h3>
+
+    <table border="1">
+        <tr>
+            <th>Category</th>
+            {% for place in places %}
+              <th>{{ place }}</th>
+            {% endfor %}
+            <th>Total</th>
+        </tr>
+
+        {% for record in records %}
+
+        <tr>
+            {% if record.id %}
+              <td><a href="{{ prefix }}{{ record.id }}{{ suffix }}/">{{ record.description }}</a></td>
+            {% else %}
+              <td>{{ record.description }}</td>
+            {% endif %}
+            <td class='timestamp'>{{record.get_times|join:"</td><td class='timestamp'>" }}</td>
+        </tr>
+        
+        {% endfor %}
+
+    </table>
+</body>
+</html>

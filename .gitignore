@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+pyvenv.cfg
+
+# Django
+*.sqlite3
+db.sqlite3
+local_settings.py
+media/
+
+# Personal time-use data
+timsy/data/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

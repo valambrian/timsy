@@ -1,0 +1,65 @@
+<html>
+<head>
+<title>Daily Time Use Log</title>
+</head>
+<body>
+<h3>Daily Time Log For {{ records.0.start|date:"l, F d, Y" }} (
+
+  {% if previous %}
+    <a href="/timsy/reports/log/{{ previous.year }}/{{ previous.month }}/{{ previous.day }}/">Previous</a>
+  {% endif %}
+
+  {% if previous and next %}
+,
+  {% endif %}
+
+  {% if next %}
+    <a href="/timsy/reports/log/{{ next.year }}/{{ next.month }}/{{ next.day }}/">Next</a>
+  {% endif %}
+
+)</h3>
+
+    <table border="1">
+        <tr>
+            <th>Start</th>
+            <th>Duration</th>
+            <th>Place</th>
+            <th>Abbreviation</th>
+            <th>Activity</th>
+            <th>Parent</th>
+            <th>Importance</th>
+            <th>Urgency</th>
+        </tr>
+
+        {% load timsy_extras %}
+
+        {% for record in records %}
+
+        <tr>
+            <td>{{ record.start|time_string}}</td>
+
+            <td>{{ record.duration|time_string }}</td>
+            
+            <td>{{ record.place.abbreviation }}</td>
+
+            {% if record.activity.abbreviation %}
+              <td>{{ record.activity.abbreviation }}</td>
+            {% else %}
+              <td> -- </td>
+            {% endif %}
+
+            <td>{{ record.activity.description }}</td>
+
+            <td>{{ record.activity.parent }}</td>
+
+            <td>{{ record.activity.importance }}</td>
+
+            <td>{{ record.activity.urgency }}</td>
+
+        </tr>
+        
+        {% endfor %}
+ 
+    </table>
+</body>
+</html>
