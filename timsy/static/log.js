@@ -1,10 +1,10 @@
 function setNextStartField(row, total) {
-  var current_id = parseInt(row, 10);
-  var next_id = current_id + 1;
-  var start = document.getElementById("id_start" + current_id).value.split(":");
-  var duration = document.getElementById("id_duration" + current_id).value.split(":");
-  var hours = 0;
-  var minutes = 0;
+  const current_id = parseInt(row, 10);
+  const next_id = current_id + 1;
+  const start = document.getElementById("id_start" + current_id).value.split(":");
+  let duration = document.getElementById("id_duration" + current_id).value.split(":");
+  let hours = 0;
+  let minutes = 0;
   if (isNaN(duration[1])) { // no hours entered, just minutes
     if (document.getElementById("id_duration" + current_id).value == "") {
       duration[0] = 0;
@@ -27,13 +27,13 @@ function start() {
 }
 
 function checkAbbreviation(row, total) {
-  var abbreviation = document.getElementById("id_abbreviation" + parseInt(row, 10)).value;
-  request = createRequest();
+  const abbreviation = document.getElementById("id_abbreviation" + parseInt(row, 10)).value;
+  let request = createRequest();
   if (request == null) {
     alert("Unable to create request");
     return;
   }
-  var url = "/timsy/requests/activity/" + abbreviation;
+  const url = "/timsy/requests/activity/" + abbreviation;
   request.open("GET", url, true);
   request.onreadystatechange = function() { displayActivityDetail(row, total); };
   request.send(null);
@@ -42,28 +42,29 @@ function checkAbbreviation(row, total) {
 function displayActivityDetail(row, total) {
   if (request.readyState == 4) {
     if (request.status == 200) {
-      var record = eval('(' + request.responseText + ')');
+      const record = eval('(' + request.responseText + ')');
       if (record.description) {
+        let index;
         document.getElementById("id_description" + row).value = record.description;
-        var parent = document.getElementById("id_parent" + row);
-        for (var index=0; index < parent.length; index = index + 1) {
+        let parent = document.getElementById("id_parent" + row);
+        for (index = 0; index < parent.length; index = index + 1) {
           if (parent.options[index].text == record.parent) {
             parent.selectedIndex = index;
           }
-        } 
-        var importance = document.getElementById("id_importance" + row);
-        for (var index=0; index < importance.length; index = index + 1) {
+        }
+        const importance = document.getElementById("id_importance" + row);
+        for (index = 0; index < importance.length; index = index + 1) {
           if (importance.options[index].text == record.importance) {
             importance.selectedIndex = index;
           }
-        } 
-        var urgency = document.getElementById("id_urgency" + row);
-        for (var index=0; index < urgency.length; index = index + 1) {
+        }
+        const urgency = document.getElementById("id_urgency" + row);
+        for (index = 0; index < urgency.length; index = index + 1) {
           if (urgency.options[index].text == record.urgency) {
             urgency.selectedIndex = index;
           }
-        } 
-        var next_id = row + 1;
+        }
+        const next_id = row + 1;
         document.getElementById("id_duration" + next_id).focus();
       }
     }
@@ -71,12 +72,12 @@ function displayActivityDetail(row, total) {
 }
 
 function getLastActivity() {
-  request = createRequest();
+  let request = createRequest();
   if (request == null) {
     alert("Unable to create request");
     return;
   }
-  var url = "/timsy/requests/last";
+  const url = "/timsy/requests/last";
   request.open("GET", url, true);
   request.onreadystatechange = displayLastActivity;
   request.send(null);
@@ -85,7 +86,7 @@ function getLastActivity() {
 function displayLastActivity() {
   if (request.readyState == 4) {
     if (request.status == 200) {
-      var record = eval('(' + request.responseText + ')');
+      const record = eval('(' + request.responseText + ')');
       document.getElementById("date").innerHTML = record.date;
       showTime("id_start0", record.start_hour, record.start_minute);
       showTime("id_duration0", record.duration_hour, record.duration_minute);

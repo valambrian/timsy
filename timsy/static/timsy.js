@@ -1,4 +1,5 @@
 function createRequest() {
+  let request;
   try {
     request = new XMLHttpRequest();
   } catch (tryMS) {
@@ -8,7 +9,7 @@ function createRequest() {
       try {
         request = new ActiveXObject("Microsoft.XMLHTTP");
       } catch (failed) {
-        request = null;
+          request = null;
       }
     }
   }
@@ -31,9 +32,9 @@ function showTime(element_id, hours, minutes){
 }
 
 function formatTimeField(element_id){
-   var time = document.getElementById(element_id).value.split(":");
-   var hours = parseInt(time[0]);
-   var minutes = parseInt(time[1]);
+   const time = document.getElementById(element_id).value.split(":");
+   const hours = parseInt(time[0]);
+   const minutes = parseInt(time[1]);
    showTime(element_id, hours, minutes);
 }
 

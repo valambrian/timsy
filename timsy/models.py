@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib import admin
 
 import datetime
 
@@ -44,6 +45,10 @@ class Parent(models.Model):
         return self.description
 
 
+class ParentModelAdmin(admin.ModelAdmin):
+    search_fields = ['id']  # Adjust this to the fields you want searchable
+
+
 class Activity(models.Model):
     sort_order = models.IntegerField(null=True, blank=True)
     abbreviation = models.CharField(max_length=10, blank=True)
@@ -57,10 +62,33 @@ class Activity(models.Model):
         return self.description
 
 
+class ActivityModelAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['parent']
+
+
 class ActivityRecord(models.Model):
     activity = models.ForeignKey(Activity, on_delete=models.PROTECT)
     place = models.ForeignKey(Place, on_delete=models.PROTECT)
     start = models.DateTimeField()
+    duration = models.TimeField()
+
+    def __str__(self):
+        return "%s (%s starting %s)" % (self.activity, self.duration, self.start)
+
+
+class IdealDayTemplate(models.Model):
+    name = models.CharField(max_length=200)
+    is_active = models.BooleanField()
+
+    def __str__(self):
+        return self.name
+
+
+class IdealDayTemplateRecord(models.Model):
+    template = models.ForeignKey(IdealDayTemplate, on_delete=models.CASCADE)
+    activity = models.ForeignKey(Activity, on_delete=models.PROTECT)
+    place = models.ForeignKey(Place, on_delete=models.PROTECT)
+    start = models.TimeField()
     duration = models.TimeField()
 
     def __str__(self):

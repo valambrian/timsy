@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ideal Day Template</title>
+    <link href="{% static 'fullcalendar/main.min.css'%}" rel='stylesheet' />
+    <script src="{% static 'fullcalendar/index.global.min.js'%}"></script>
+</head>
+<body>
+    <div id='calendar'></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'timeGridDay',
+                events: '/events/', // URL to fetch events from Django
+                editable: true,     // Allows drag-and-drop functionality
+                selectable: true,   // Allows selecting dates
+                eventClick: function(info) {
+                    alert('Event: ' + info.event.title);
+                }
+            });
+            calendar.render();
+        });
+    </script>
+</body>
+</html>

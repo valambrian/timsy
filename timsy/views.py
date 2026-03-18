@@ -9,10 +9,10 @@ from django.shortcuts import render
 from django.template import loader
 from django import forms
 
-from .models import Activity, ActivityRecord, Importance, Parent, Place, Urgency
+from .models import Activity, ActivityRecord, Importance, Parent, Place, Urgency, IdealDayTemplate
 
 # common functionality	
-def get_last_activity(request):
+def get_last_activity_record(request):
     if request.method == 'GET':
         response_dict = {}
         record = ActivityRecord.objects.all().order_by('-start')[0]
@@ -45,26 +45,17 @@ def get_activity(request, abbreviation):
             response_dict ["urgency"] = record.urgency.description
         return HttpResponse(json.dumps(response_dict))
 
-def urgency_choices():
-    objects = Urgency.objects.all()
-    result = []
-    for object in objects:
-        result.append((object.id, object.description))
-    return result
+def urgencies():
+    return [(obj.id, obj.description) for obj in Urgency.objects.all()]
 
-def importance_choices():
-    objects = Importance.objects.all()
-    result = []
-    for object in objects:
-        result.append((object.id, object.description))
-    return result
+def importances():
+    return [(obj.id, obj.description) for obj in Importance.objects.all()]
 
-def parent_choices():
-    objects = Parent.objects.all()
-    result = []
-    for object in objects:
-        result.append((object.id, object.description))
-    return result
+def parents():
+    return [(obj.id, obj.description) for obj in Parent.objects.all()]
+
+def ideal_day_templates():
+    return [(obj.id, obj.name) for obj in IdealDayTemplate.objects.all()]
 
 def get_first_record_of(date):
     from django.db import connection, transaction
@@ -789,13 +780,20 @@ def daily_week_breakdown(request, parent, year, month, day):
     return daily_breakdown(request=request, frequency="my_weekly", parent=parent,
                    from_year=year, from_month=month, from_day=day)
 
+def calendar_view(request):
+    return render(request, 'calendar.html')
+
+def idt_list_view(request):
+    context = {'records':  IdealDayTemplate.objects.all()}
+    return render(request, 'ideal_day_templates.html', context)
+
 # daily entry log form
 class LogForm(forms.Form):
     class Media:
         js = ('timsy.js', 'log.js')
-    urgency_list = urgency_choices()
-    importance_list = importance_choices()
-    parent_list = parent_choices()
+    urgency_list = urgencies()
+    importance_list = importances()
+    parent_list = parents()
     new_records = 5
 
 def entry_log(request):

@@ -4,7 +4,7 @@ from . import views
 
 urlpatterns = [
     path('', views.index, name='index'),
-    path('requests/last/', views.get_last_activity),
+    path('requests/last/', views.get_last_activity_record),
     path('requests/activity/<slug:abbreviation>/', views.get_activity),
     path('reports/log/<int:year>/<int:month>/<int:day>/', views.daily_log),
     path('reports/log/latest/', views.latest_log),
@@ -20,4 +20,6 @@ urlpatterns = [
     path('reports/summary/monthly/latest/', views.latest_monthly_summary),
     path('reports/summary/<slug:parent>/<int:to_year>/<int:to_month>/<int:to_day>/<int:from_year>/<int:from_month>/<int:from_day>/', views.custom_summary),
     path('data/log/', views.entry_log),
+    path('data/calendar/', views.calendar_view),
+    path('data/idts/', views.idt_list_view),
 ]
