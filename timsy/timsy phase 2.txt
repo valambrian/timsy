@@ -1,0 +1,15 @@
+Ideal day template editor may be needed since it editing it in django's admin becomes cumbersome
+
+Weekly plan editor
+
+Backlog editor (backlog, in progress, done, ongoing)
+
+Running list
+
+Plan 4 tomorrow
+
+Placeholders for types of activities or projects
+
+Data aggregation per block of time
+
+Exercise list

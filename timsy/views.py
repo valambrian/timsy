@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from datetime import date, datetime, time, timedelta
+from django.utils.timezone import make_aware
 import json
 
 from django.http import HttpResponse, HttpResponseRedirect
@@ -14,35 +15,13 @@ from .models import Activity, ActivityRecord, Importance, Parent, Place, Urgency
 # common functionality	
 def get_last_activity_record(request):
     if request.method == 'GET':
-        response_dict = {}
         record = ActivityRecord.objects.all().order_by('-start')[0]
-        response_dict ["date"] = record.start.strftime("%A, %B %d, %Y")
-        response_dict ["start_hour"] = record.start.hour
-        response_dict ["start_minute"] = record.start.minute
-        response_dict ["duration_hour"] = record.duration.hour
-        response_dict ["duration_minute"] = record.duration.minute
-        response_dict ["start"] = ("%s:%s") % (record.start.hour,
-                                               record.start.minute)
-        response_dict ["duration"] = ("%s:%s") % (record.duration.hour,
-                                                  record.duration.minute)
-        response_dict ["place"] = record.place.abbreviation
-        response_dict ["abbreviation"] = record.activity.abbreviation
-        response_dict ["description"] = record.activity.description
-        response_dict ["parent"] = record.activity.parent.description
-        response_dict ["importance"] = record.activity.importance.description
-        response_dict ["urgency"] = record.activity.urgency.description
-        return HttpResponse(json.dumps(response_dict))
+        return HttpResponse(json.dumps(record.as_hash()))
 
 def get_activity(request, abbreviation):
     if request.method == 'GET':
-        response_dict = {}
-        records = Activity.objects.filter(abbreviation=abbreviation)
-        if len(records) > 0:
-            record = records[0]
-            response_dict ["description"] = record.description
-            response_dict ["parent"] = record.parent.description
-            response_dict ["importance"] = record.importance.description
-            response_dict ["urgency"] = record.urgency.description
+        record = Activity.objects.filter(abbreviation=abbreviation).first()
+        response_dict = record.as_hash() if record else {}
         return HttpResponse(json.dumps(response_dict))
 
 def urgencies():
@@ -58,26 +37,20 @@ def ideal_day_templates():
     return [(obj.id, obj.name) for obj in IdealDayTemplate.objects.all()]
 
 def get_first_record_of(date):
-    from django.db import connection, transaction
-    cursor = connection.cursor()
-    query = """select MIN(start)
-                 from timsy_activityrecord
-                where DATE(start) = '%d-%d-%d'
-            """ % (date.year, date.month, date.day)
-    cursor.execute(query)
-    return cursor.fetchone()[0]
+    start_of_day = make_aware(datetime.combine(date, datetime.min.time()))
+    end_of_day = make_aware(datetime.combine(date, datetime.max.time()))
+
+    return ActivityRecord.objects.filter(
+        start__range=(start_of_day, end_of_day)
+    ).order_by('start').first()
 
 def get_first_record_in_range(start_date, end_date):
-    from django.db import connection, transaction
-    cursor = connection.cursor()
-    query = """select MIN(start)
-                 from timsy_activityrecord
-                where DATE(start) >= '%d-%d-%d'
-                  and DATE(start) < '%d-%d-%d'
-            """ % (start_date.year, start_date.month, start_date.day,
-                   end_date.year, end_date.month, end_date.day)
-    cursor.execute(query)
-    return cursor.fetchone()[0]
+    start_of_period = make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_of_period = make_aware(datetime.combine(end_date, datetime.min.time()))
+
+    return ActivityRecord.objects.filter(
+        start__range=(start_of_period, end_of_period)
+    ).order_by('start').first()
 
 def timestamp_string(seconds):
 	if not seconds:
@@ -109,7 +82,7 @@ def daily_log(request, year, month, day):
 
 def latest_log(request):
     """Create the latest daily time use log report"""
-    latest_record = ActivityRecord.objects.all().order_by('-start')[0]
+    latest_record = ActivityRecord.objects.all().order_by('-start').first()
     year = latest_record.start.year
     month = latest_record.start.month
     day = latest_record.start.day
@@ -170,17 +143,17 @@ def summary(request, parent="ALL", frequency="custom",
         if previous_date:
             previous = "/timsy/reports/summary/daily/%s/%d/%d/%d" % \
                         (parent,
-                         previous_date.year,
-                         previous_date.month,
-                         previous_date.day)
+                         previous_date.start.year,
+                         previous_date.start.month,
+                         previous_date.start.day)
         else:
             previous = None
         if next_date:
             next = "/timsy/reports/summary/daily/%s/%d/%d/%d" % \
                     (parent,
-                     next_date.year,
-                     next_date.month,
-                     next_date.day)
+                     next_date.start.year,
+                     next_date.start.month,
+                     next_date.start.day)
         else:
             next = None
         prefix = "/timsy/reports/summary/daily/"
@@ -201,17 +174,17 @@ def summary(request, parent="ALL", frequency="custom",
         if previous_date:
             previous = "/timsy/reports/summary/weekly/%s/%d/%d/%d" % \
                         (parent,
-                         previous_date.year,
-                         previous_date.month,
-                         previous_date.day)
+                         previous_date.start.year,
+                         previous_date.start.month,
+                         previous_date.start.day)
         else:
             previous = None
         if next_date:
             next = "/timsy/reports/summary/weekly/%s/%d/%d/%d" % \
                     (parent,
-                     next_date.year,
-                     next_date.month,
-                     next_date.day)
+                     next_date.start.year,
+                     next_date.start.month,
+                     next_date.start.day)
         else:
             next = None
         prefix = "/timsy/reports/summary/weekly/"
@@ -232,17 +205,17 @@ def summary(request, parent="ALL", frequency="custom",
         if previous_date:
             previous = "/timsy/reports/summary/my_weekly/%s/%d/%d/%d" % \
                         (parent,
-                         previous_date.year,
-                         previous_date.month,
-                         previous_date.day)
+                         previous_date.start.year,
+                         previous_date.start.month,
+                         previous_date.start.day)
         else:
             previous = None
         if next_date:
             next = "/timsy/reports/summary/my_weekly/%s/%d/%d/%d" % \
                     (parent,
-                     next_date.year,
-                     next_date.month,
-                     next_date.day)
+                     next_date.start.year,
+                     next_date.start.month,
+                     next_date.start.day)
         else:
             next = None
         prefix = "/timsy/reports/summary/my_weekly/"
@@ -267,22 +240,22 @@ def summary(request, parent="ALL", frequency="custom",
             previous_start = date(year=start_date.year-1, month=12, day=1)
         else:
             previous_start = start_date.replace(month=start_date.month-1)
-        previous_date = get_first_record_in_range(previous_start, start_date)
-        next_date = get_first_record_of(end_date + timedelta(days=1))
-        if previous_date:
+        previous_period_first_record = get_first_record_in_range(previous_start, start_date)
+        next_period_first_record = get_first_record_of(end_date + timedelta(days=1))
+        if previous_period_first_record:
             previous = "/timsy/reports/summary/monthly/%s/%d/%d/%d" % \
                         (parent,
-                         previous_date.year,
-                         previous_date.month,
-                         previous_date.day)
+                         previous_period_first_record.start.year,
+                         previous_period_first_record.start.month,
+                         previous_period_first_record.start.day)
         else:
             previous = None
-        if next_date:
+        if next_period_first_record:
             next = "/timsy/reports/summary/monthly/%s/%d/%d/%d" % \
                     (parent,
-                     next_date.year,
-                     next_date.month,
-                     next_date.day)
+                     next_period_first_record.start.year,
+                     next_period_first_record.start.month,
+                     next_period_first_record.start.day)
         else:
             next = None
         prefix = "/timsy/reports/summary/monthly/"
@@ -578,17 +551,17 @@ def daily_breakdown(request, parent="ALL", frequency="custom",
         if previous_date:
             previous = "/timsy/reports/summary/daily_week_breakdown/%s/%d/%d/%d" % \
                         (parent,
-                         previous_date.year,
-                         previous_date.month,
-                         previous_date.day)
+                         previous_date.start.year,
+                         previous_date.start.month,
+                         previous_date.start.day)
         else:
             previous = None
         if next_date:
             next = "/timsy/reports/summary/daily_week_breakdown/%s/%d/%d/%d" % \
                     (parent,
-                     next_date.year,
-                     next_date.month,
-                     next_date.day)
+                     next_date.start.year,
+                     next_date.start.month,
+                     next_date.start.day)
         else:
             next = None
         prefix = "/timsy/reports/summary/daily_week_breakdown/"

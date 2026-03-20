@@ -6,7 +6,7 @@
 <h3>Daily Time Log For {{ records.0.start|date:"l, F d, Y" }} (
 
   {% if previous %}
-    <a href="/timsy/reports/log/{{ previous.year }}/{{ previous.month }}/{{ previous.day }}/">Previous</a>
+    <a href="/timsy/reports/log/{{ previous.start.year }}/{{ previous.start.month }}/{{ previous.start.day }}/">Previous</a>
   {% endif %}
 
   {% if previous and next %}
@@ -14,7 +14,7 @@
   {% endif %}
 
   {% if next %}
-    <a href="/timsy/reports/log/{{ next.year }}/{{ next.month }}/{{ next.day }}/">Next</a>
+    <a href="/timsy/reports/log/{{ next.start.year }}/{{ next.start.month }}/{{ next.start.day }}/">Next</a>
   {% endif %}
 
 )</h3>
