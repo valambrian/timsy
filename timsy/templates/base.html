@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="icon" href="data:,">
+    <style>
+        .timestamp {
+            text-align: right;
+        }
+
+        .invalid-place {
+            border: 2px solid red;
+            background-color: #fff0f0;
+        }
+    </style>
+    <script type="text/javascript">
+        function createRequest() {
+            let request;
+            try {
+                request = new XMLHttpRequest();
+            } catch (tryMS) {
+                try {
+                    request = new ActiveXObject("Msxml2.XMLHTTP");
+                } catch (otherMS) {
+                    try {
+                        request = new ActiveXObject("Microsoft.XMLHTTP");
+                    } catch (failed) {
+                        request = null;
+                    }
+                }
+            }
+            return request;
+        }
+
+        function showTime(element_id, hours, minutes) {
+            if (minutes >= 60) {
+                minutes -= 60;
+                hours = hours + 1;
+            }
+            if (hours < 10) {
+                hours = "0" + hours.toString();
+            } else {
+                hours = hours.toString();
+            }
+            if (minutes < 10) {
+                minutes = "0" + minutes.toString();
+            } else {
+                minutes = minutes.toString();
+            }
+            document.getElementById(element_id).value = hours + ":" + minutes;
+        }
+    </script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        {% block actions %}{% endblock %}
+        {% block content %}{% endblock %}
+    </div>
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

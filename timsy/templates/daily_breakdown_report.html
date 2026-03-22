@@ -1,13 +1,15 @@
+{% extends "base.html" %}
 {% load static %}
 
-<html>
-<head>
-  <title>Summary Time Use Report</title>
-  <link rel="stylesheet" type="text/css" href="{% static 'timsy.css' %}">
-</head>
-<body>
-<h3>{{ title }} (
+{% block title %}Summary Time Use Report{% endblock %}
 
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'timsy.css' %}">
+{% endblock %}
+
+{% block content %}
+<h3>{{ title }} (
   {% if previous %}
     <a href="{{ previous }}/">Previous</a>
   {% endif %}
@@ -19,7 +21,6 @@
   {% if next %}
     <a href="{{ next }}/">Next</a>
   {% endif %}
-
 )</h3>
 
     <table border="1">
@@ -35,18 +36,14 @@
         </tr>
 
         {% for record in records %}
-
         <tr>
             {% if record.id %}
-              <td><a href="{{ prefix }}{{ record.id }}{{ suffix }}">{{ record.description }}</a></td>
+              <td><a href="{{ prefix }}{{ record.id }}{{ suffix }}/">{{ record.description }}</a></td>
             {% else %}
               <td>{{ record.description }}</td>
             {% endif %}
             <td class='timestamp'>{{record.get_times|join:"</td><td class='timestamp'>" }}</td>
         </tr>
-        
         {% endfor %}
-
     </table>
-</body>
-</html>
+{% endblock %}

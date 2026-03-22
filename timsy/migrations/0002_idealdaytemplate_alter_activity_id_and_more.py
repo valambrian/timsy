@@ -39,15 +39,4 @@ class Migration(migrations.Migration):
             name='id',
             field=models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID'),
         ),
-        migrations.CreateModel(
-            name='IdealDayTemplateRecord',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('start', models.TimeField()),
-                ('duration', models.TimeField()),
-                ('activity', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='timsy.activity')),
-                ('place', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='timsy.place')),
-                ('template', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='timsy.idealdaytemplate')),
-            ],
-        ),
     ]

@@ -1,4 +1,35 @@
-def get_summary_query(parent_pattern, start_date_pattern, end_date_pattern, parent):
+"""
+Database queries for the timsy application.
+
+This module contains complex SQL queries used across different views for generating reports
+and summaries. The queries are designed to aggregate activity records by various dimensions
+such as time periods, places, and parent activities.
+
+The module provides functions for:
+- Generating summary reports with time aggregation by place
+- Creating daily breakdown reports with time aggregation by both date and place
+"""
+
+from typing import Union
+
+def get_summary_query(
+    parent_pattern: str,
+    start_date_pattern: str,
+    end_date_pattern: str,
+    parent: str
+) -> str:
+    """
+    Get the SQL query for summary report.
+    
+    Args:
+        parent_pattern: Pattern for parent ID filtering
+        start_date_pattern: Start date in YYYY-MM-DD format
+        end_date_pattern: End date in YYYY-MM-DD format
+        parent: Parent ID for activity filtering
+        
+    Returns:
+        SQL query for summary report
+    """
     return """select p.sort_order parent_order,
                       NULL activity_order,
                       p.id,
@@ -8,7 +39,7 @@ def get_summary_query(parent_pattern, start_date_pattern, end_date_pattern, pare
                  from timsy_parent p,
                       timsy_activity a,
                       timsy_activityrecord r
-                where p.id like '%s'
+                where p.id like '%s' 
                   and a.parent_id like CONCAT(p.id, '%%%%')
                   and r.activity_id = a.id
                   and r.start >= '%s'
@@ -41,8 +72,24 @@ def get_summary_query(parent_pattern, start_date_pattern, end_date_pattern, pare
                                        start_date_pattern,
                                        end_date_pattern)
 
-
-def get_daily_breakdown_query(parent_pattern, start_date_pattern, end_date_pattern, parent):
+def get_daily_breakdown_query(
+    parent_pattern: str,
+    start_date_pattern: str,
+    end_date_pattern: str,
+    parent: str
+) -> str:
+    """
+    Get the SQL query for daily breakdown report.
+    
+    Args:
+        parent_pattern: Pattern for parent ID filtering
+        start_date_pattern: Start date in YYYY-MM-DD format
+        end_date_pattern: End date in YYYY-MM-DD format
+        parent: Parent ID for activity filtering
+        
+    Returns:
+        SQL query for daily breakdown report
+    """
     return """select p.sort_order parent_order,
                       NULL activity_order,
                       p.id,
@@ -53,7 +100,7 @@ def get_daily_breakdown_query(parent_pattern, start_date_pattern, end_date_patte
                  from timsy_parent p,
                       timsy_activity a,
                       timsy_activityrecord r
-                where p.id like '%s'
+                where p.id like '%s' 
                   and a.parent_id like CONCAT(p.id, '%%%%')
                   and r.activity_id = a.id
                   and r.start >= '%s'
@@ -87,4 +134,4 @@ def get_daily_breakdown_query(parent_pattern, start_date_pattern, end_date_patte
                                        end_date_pattern,
                                        parent,
                                        start_date_pattern,
-                                       end_date_pattern)
+                                       end_date_pattern) 

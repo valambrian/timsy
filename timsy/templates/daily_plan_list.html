@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Plans</title>
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <h1>Daily Plans</h1>
+    
+
+    {% if plans %}
+        <ul>
+            <li><a href="{% url 'daily_plan_create' %}">New Plan</a></li>
+            {% for plan in plans %}
+                <li>
+                    {{ plan.date|date:"F j, Y" }}:
+                    <a href="{% url 'daily_plan_view' plan.date.year plan.date.month plan.date.day %}">
+                        view,
+                    </a>
+                    <a href="{% url 'daily_plan_edit' plan.date.year plan.date.month plan.date.day %}">edit</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html> 

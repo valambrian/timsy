@@ -1,95 +1,141 @@
-<html>
-<head>
-<title>Daily Time Use Log</title>
-{{ form.media }}
-</head>
-<body>
+{% extends "editor.html" %}
+{% load static %}
+
+{% block title %}Daily Time Use Log{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<script type="text/javascript">
+    function start() {
+        getLastActivity();
+    }
+
+    function getLastActivity() {
+        request = createRequest();
+        if (request == null) {
+            alert("Unable to create request");
+            return;
+        }
+        const url = "/timsy/data/activities/last/";
+        request.open("GET", url, true);
+        request.onreadystatechange = displayLastActivity;
+        request.send(null);
+    }
+
+    function displayLastActivity() {
+        if (request.readyState == 4) {
+            if (request.status == 200) {
+                const record = eval('(' + request.responseText + ')');
+                document.getElementById("date").innerHTML = record.date;
+                showTime("id_start0", record.start_hour, record.start_minute);
+                showTime("id_duration0", record.duration_hour, record.duration_minute);
+                document.getElementById("id_place0").value = record.place;
+                document.getElementById("id_abbreviation0").value = record.abbreviation;
+                document.getElementById("id_description0").value = record.description;
+                document.getElementById("id_parent0").value = record.parent;
+                document.getElementById("id_importance0").value = record.importance;
+                document.getElementById("id_urgency0").value = record.urgency;
+                setNextStartField(0);
+                document.getElementById("id_duration1").focus();
+            }
+        }
+    }
+
+    window.onload = start;
+</script>
+{% endblock %}
+
+{% block header %}
 <h3><div id="date">n/a</div></h3>
-<form action="/timsy/data/log/" method="POST"> {% csrf_token %}
+{% endblock %}
+
+{% block form_content %}
+<form method="POST" onsubmit="return validateAllPlaces(validPlaces)">
+    {% csrf_token %}
     <table border="1">
-        <tr>
-            <th>Start</th>
-            <th>Duration</th>
-            <th>Place</th>
-            <th>Abbreviation</th>
-            <th>Activity</th>
-            <th>Parent</th>
-            <th>Importance</th>
-            <th>Urgency</th>
-        </tr>
+        <thead>
+            <tr>
+                <th>Start</th>
+                <th>Duration</th>
+                <th>Place</th>
+                <th>Abbreviation</th>
+                <th>Activity</th>
+                <th>Parent</th>
+                <th>Importance</th>
+                <th>Urgency</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><input type="text" name="start0" id="id_start0"
+                       value="00:00" readonly="readonly" /></td>
+                <td><input type="text" name="duration0" id="id_duration0"
+                       value="00:00" onblur="setNextStartField(0)" /></td>
+                <td><input type="text" name="place0" id="id_place0"
+                       value="n/a" disabled="disabled" readonly="readonly" /></td>
+                <td><input type="text" name="abbreviation0" id="id_abbreviation0"
+                       value="n/a" disabled="disabled" readonly="readonly" /></td>
+                <td><input type="text" name="description0" id="id_description0"
+                       value="n/a" disabled="disabled" readonly="readonly" /></td>
+                <td><input type="text" name="parent0" id="id_parent0"
+                       value="n/a" disabled="disabled" readonly="readonly" /></td>
+                <td><input type="text" name="importance0" id="id_importance0"
+                       value="n/a" disabled="disabled" readonly="readonly" /></td>
+                <td><input type="text" name="urgency0" id="id_urgency0"
+                       value="n/a" disabled="disabled" readonly="readonly" /></td>
+            </tr>
 
-        <tr>
-            <td><input type="text" name="start0" id="id_start0"
-                   value="00:00" /></td>
-            <td><input type="text" name="duration0" id="id_duration0"
-                   value="00:00" onblur="setNextStartField(0, 1)" /></td>
-            <td><input type="text" name="place0" id="id_place0"
-                   value="n/a" disabled="disabled" readonly="readonly" /></td>
-            <td><input type="text" name="abbreviation0" id="id_abbreviation0"
-                   value="n/a" disabled="disabled" readonly="readonly" /></td>
-            <td><input type="text" name="description0" id="id_description0"
-                   value="n/a" disabled="disabled" readonly="readonly" /></td>
-            <td><input type="text" name="parent0" id="id_parent0"
-                   value="n/a" disabled="disabled" readonly="readonly" /></td>
-            <td><input type="text" name="importance0" id="id_importance0"
-                   value="n/a" disabled="disabled" readonly="readonly" /></td>
-            <td><input type="text" name="urgency0" id="id_urgency0"
-                   value="n/a" disabled="disabled" readonly="readonly" /></td>
-        </tr>
+            {% load timsy_extras %}
+            
+            {% for record in form.new_records|times %}
 
+            <tr>
+                <td><input type="text" name="start{{ forloop.counter }}"
+                    id="id_start{{ forloop.counter }}" readonly="readonly" /></td>
 
-        {% load timsy_extras %}
-        
-        {% for record in form.new_records|times %}
+                <td><input type="text" name="duration{{ forloop.counter }}"
+                    id="id_duration{{ forloop.counter }}"
+                    onblur="setNextStartField({{ forloop.counter }})" /></td>
 
-        <tr>
-            <td><input type="text" name="start{{ forloop.counter }}"
-                id="id_start{{ forloop.counter }}" /></td>
+                <td><input type="text" name="place{{ forloop.counter }}"
+                    id="id_place{{ forloop.counter }}" /></td>
 
-            <td><input type="text" name="duration{{ forloop.counter }}"
-                id="id_duration{{ forloop.counter }}"
-                onblur="setNextStartField({{ forloop.counter }}, {{ form.new_records }})" /></td>
+                <td><input type="text" name="abbreviation{{ forloop.counter }}"
+                    id="id_abbreviation{{ forloop.counter }}"
+                    onblur="checkAbbreviation({{ forloop.counter }})" /></td>
 
-            <td><input type="text" name="place{{ forloop.counter }}"
-                id="id_place{{ forloop.counter }}" /></td>
+                <td><input type="text" name="description{{ forloop.counter }}"
+                    id="id_description{{ forloop.counter }}" /></td>
 
-            <td><input type="text" name="abbreviation{{ forloop.counter }}"
-                id="id_abbreviation{{ forloop.counter }}"
-                onblur="checkAbbreviation({{ forloop.counter }}, {{ form.new_records }})" /></td>
+                <td><select name="parent{{ forloop.counter }}"
+                    id="id_parent{{ forloop.counter }}">
+                    {% for option in form.parent_list %}
+                    <option value="{{ option.0 }}">{{ option.1 }}</option>
+                    {% endfor %}
+                    </select>
+                </td>
 
-            <td><input type="text" name="description{{ forloop.counter }}"
-                id="id_description{{ forloop.counter }}" /></td>
+                <td><select name="importance{{ forloop.counter }}"
+                    id="id_importance{{ forloop.counter }}">
+                    {% for option in form.importance_list %}
+                    <option value="{{ option.0 }}">{{ option.1 }}</option>
+                    {% endfor %}
+                    </select>
+                </td>
 
-            <td><select name="parent{{ forloop.counter }}"
-                id="id_parent{{ forloop.counter }}">
-                {% for option in form.parent_list %}
-                <option value="{{ option.0 }}">{{ option.1 }}</option>
-                {% endfor %}
-                </select>
-            </td>
+                <td><select name="urgency{{ forloop.counter }}"
+                    id="id_urgency{{ forloop.counter }}">
+                    {% for option in form.urgency_list %}
+                    <option value="{{ option.0 }}">{{ option.1 }}</option>
+                    {% endfor %}
+                    </select>
+                </td>
 
-            <td><select name="importance{{ forloop.counter }}"
-                id="id_importance{{ forloop.counter }}">
-                {% for option in form.importance_list %}
-                <option value="{{ option.0 }}">{{ option.1 }}</option>
-                {% endfor %}
-                </select>
-            </td>
-
-            <td><select name="urgency{{ forloop.counter }}"
-                id="id_urgency{{ forloop.counter }}">
-                {% for option in form.urgency_list %}
-                <option value="{{ option.0 }}">{{ option.1 }}</option>
-                {% endfor %}
-                </select>
-            </td>
-
-        </tr>
-        
-        {% endfor %}
-        
+            </tr>
+            
+            {% endfor %}
+        </tbody>
     </table>
-<input type="submit" value="Submit">
+    <input type="submit" value="Save" />
 </form>
-</body>
-</html>
+{% endblock %}

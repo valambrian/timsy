@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Blueprints{% endblock %}
+
+{% block content %}
+    <h3>Blueprints</h3>
+
+    <ul>
+        {% for blueprint in records %}
+        <li>{{ blueprint.name }} ({% if blueprint.is_active %}Active{% else %}Inactive{% endif %}):
+            <a href="{% url 'blueprint_detail' blueprint.id %}">view</a>,
+            <a href="{% url 'blueprint_edit' blueprint.id %}">edit</a>
+        </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

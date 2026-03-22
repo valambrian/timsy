@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.name.id_for_label }}">Name:</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div class="error">{{ form.name.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.is_active.id_for_label }}">Active:</label>
+            {{ form.is_active }}
+            {% if form.is_active.errors %}
+            <div class="error">{{ form.is_active.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="button">Save</button>
+            {% if blueprint %}
+            <a href="{% url 'blueprint_detail' blueprint.id %}" class="button">Cancel</a>
+            {% else %}
+            <a href="{% url 'blueprint_list' %}" class="button">Cancel</a>
+            {% endif %}
+        </div>
+    </form>
+{% endblock %} 

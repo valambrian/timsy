@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ blueprint.name }}{% endblock %}
+
+{% block content %}
+    <h3>{{ blueprint.name }} ({% if blueprint.is_active %}Active{% else %}Inactive{% endif %})</h3>
+
+    <div class="actions" style="margin-bottom: 20px;">
+        <a href="{% url 'blueprint_edit' blueprint.id %}" class="button">Edit Blueprint</a>
+    </div>
+
+    <table class="data-table" border="1">
+        <thead>
+            <tr>
+                <th>Start</th>
+                <th>Duration</th>
+                <th>Place</th>
+                <th>Abbreviation</th>
+                <th>Activity</th>
+                <th>Parent</th>
+                <th>Importance</th>
+                <th>Urgency</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td>{{ entry.start|time:"H:i" }}</td>
+                <td>{{ entry.duration|time:"H:i" }}</td>
+                <td>{{ entry.place.abbreviation }}</td>
+                <td>{{ entry.activity.abbreviation }}</td>
+                <td>{{ entry.activity.description }}</td>
+                <td>{{ entry.activity.parent.description }}</td>
+                <td>{{ entry.activity.importance.description }}</td>
+                <td>{{ entry.activity.urgency.description }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8">No entries found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

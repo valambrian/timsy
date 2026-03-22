@@ -6,8 +6,14 @@
 </head>
 <body>
     <h3>Ideal Day Templates</h3>
-    {% for idt in records %}
-        <li>{{ idt.name }}</li>
-    {% endfor %}
+    <ul>
+        {% for template in records %}
+        <li>{{ template.name }}:
+            <a href="/timsy/data/ideal_day_templates/view/{{ template.id }}/">view</a>,
+            <a href="/timsy/data/ideal_day_templates/edit/{{ template.id }}/">edit</a>,
+            <a href="/timsy/data/ideal_day_templates/summary/{{ template.id }}/">summary</a>
+        </li>
+        {% endfor %}
+    </ul>
 </body>
 </html>

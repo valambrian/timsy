@@ -1,0 +1,137 @@
+{% extends "editor.html" %}
+
+{% block title %}Edit {{ blueprint.name }}{% endblock %}
+
+{% block header %}
+<h3>Blueprint: {{ blueprint.name }} ({% if blueprint.is_active %}Active{% else %}Inactive{% endif %})</h3>
+{% endblock %}
+
+{% block form_content %}
+<div class="table-responsive">
+    <table class="table table-striped" border="1">
+        <thead>
+            <tr>
+                <th>Start</th>
+                <th>Duration</th>
+                <th>Place</th>
+                <th>Abbreviation</th>
+                <th>Activity</th>
+                <th>Parent</th>
+                <th>Importance</th>
+                <th>Urgency</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td><input type="text" name="start{{ forloop.counter0 }}" id="id_start{{ forloop.counter0 }}" value="{{ entry.start|time:'H:i' }}" readonly="readonly" /></td>
+                <td>
+                    <input type="text" name="duration{{ forloop.counter0 }}" id="id_duration{{ forloop.counter0 }}" value="{{ entry.duration|time:'H:i' }}" class="form-control" required onblur="console.log('Existing entry duration blur - counter0:', '{{ forloop.counter0 }}'); setNextStartField('{{ forloop.counter0 }}')">
+                </td>
+                <td>
+                    <input type="text" name="place{{ forloop.counter0 }}" value="{{ entry.place.abbreviation }}" class="form-control" required>
+                </td>
+                <td>
+                    <input type="text" name="abbreviation{{ forloop.counter0 }}" id="id_abbreviation{{ forloop.counter0 }}" value="{{ entry.activity.abbreviation }}" class="form-control" required onblur="checkAbbreviation({{ forloop.counter0 }})">
+                </td>
+                <td>
+                    <input type="text" name="description{{ forloop.counter0 }}" id="id_description{{ forloop.counter0 }}" value="{{ entry.activity.description }}" class="form-control" required>
+                </td>
+                <td>
+                    <select name="parent{{ forloop.counter0 }}" id="id_parent{{ forloop.counter0 }}" class="form-control" required>
+                        {% for option in form.parent_list %}
+                        <option value="{{ option.0 }}" {% if option.0 == entry.activity.parent.id %}selected{% endif %}>{{ option.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select name="importance{{ forloop.counter0 }}" id="id_importance{{ forloop.counter0 }}" class="form-control" required>
+                        {% for option in form.importance_list %}
+                        <option value="{{ option.0 }}" {% if option.0 == entry.activity.importance.id %}selected{% endif %}>{{ option.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select name="urgency{{ forloop.counter0 }}" id="id_urgency{{ forloop.counter0 }}" class="form-control" required>
+                        {% for option in form.urgency_list %}
+                        <option value="{{ option.0 }}" {% if option.0 == entry.activity.urgency.id %}selected{% endif %}>{{ option.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+            </tr>
+            {% endfor %}
+            {% for i in "12345" %}
+            {% with entries_count=entries|length %}
+            {% with row_num=forloop.counter0|add:entries_count %}
+            <tr>
+                <td><input type="text" name="start{{ row_num }}" id="id_start{{ row_num }}" {% if forloop.counter0 == 0 and not entries %}class="form-control" onblur="console.log('New entry start blur - counter0:', '{{ forloop.counter0 }}', 'entries length:', '{{ entries_count }}', 'total:', '{{ row_num }}', 'readonly: false'); setNextStartField('{{ row_num }}')"{% else %}readonly="readonly" onblur="console.log('Start field readonly - counter0:', '{{ forloop.counter0 }}', 'entries length:', '{{ entries_count }}', 'total:', '{{ row_num }}', 'readonly: true');"{% endif %} /></td>
+                <td>
+                    <input type="text" name="duration{{ row_num }}" id="id_duration{{ row_num }}" class="form-control" onblur="console.log('New entry duration blur - counter0:', '{{ forloop.counter0 }}', 'entries length:', '{{ entries_count }}', 'total:', '{{ row_num }}'); setNextStartField('{{ row_num }}')">
+                </td>
+                <td>
+                    <input type="text" name="place{{ row_num }}" class="form-control">
+                </td>
+                <td>
+                    <input type="text" name="abbreviation{{ row_num }}" id="id_abbreviation{{ row_num }}" class="form-control" onblur="checkAbbreviation({{ row_num }})">
+                </td>
+                <td>
+                    <input type="text" name="description{{ row_num }}" id="id_description{{ row_num }}" class="form-control">
+                </td>
+                <td>
+                    <select name="parent{{ row_num }}" id="id_parent{{ row_num }}" class="form-control">
+                        {% for option in form.parent_list %}
+                        <option value="{{ option.0 }}">{{ option.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select name="importance{{ row_num }}" id="id_importance{{ row_num }}" class="form-control">
+                        {% for option in form.importance_list %}
+                        <option value="{{ option.0 }}">{{ option.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select name="urgency{{ row_num }}" id="id_urgency{{ row_num }}" class="form-control">
+                        {% for option in form.urgency_list %}
+                        <option value="{{ option.0 }}">{{ option.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+            </tr>
+            {% endwith %}
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const durationInputs = document.querySelectorAll('input[name^="duration"]');
+    console.log('Found duration inputs:', durationInputs.length);
+    
+    durationInputs.forEach(input => {
+        console.log('Input name:', input.name, 'ID:', input.id);
+        input.addEventListener('change', function() {
+            const rowNum = this.name.match(/\d+/)[0];
+            console.log('Duration changed for row:', rowNum);
+            console.log('Input name:', this.name);
+            console.log('Input ID:', this.id);
+            setNextStartField(rowNum);
+        });
+    });
+    
+    // If there are existing entries, call setNextStartField on the last one
+    // to populate the start time of the first new entry
+    {% if entries %}
+    const lastEntryIndex = {{ entries|length|add:"-1" }};
+    console.log('Setting next start field for last entry at index:', lastEntryIndex);
+    setNextStartField(lastEntryIndex);
+    {% endif %}
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Plan - {{ plan.date|date:"F j, Y" }}</title>
+</head>
+<body>
+    {% load timsy_extras %}
+    
+
+    <div>
+        <h3>Daily Plan for {{ plan.date|date:"F j, Y" }}</h3>
+        <p>Template: {{ plan.template.name }}</p>
+    </div>
+
+    <div>
+        {% if plan.get_entries %}
+            <table border="1">
+                <tr>
+                    <th>Start</th>
+                    <th>Duration</th>
+                    <th>Place</th>
+                    <th>Abbreviation</th>
+                    <th>Activity</th>
+                    <th>Parent</th>
+                    <th>Importance</th>
+                    <th>Urgency</th>
+                </tr>
+                {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.start|time_string }}</td>
+                        <td>{{ entry.duration|timedelta_string }}</td>
+                        <td>{{ entry.place.abbreviation }}</td>
+                        {% if entry.activity.abbreviation %}
+                            <td>{{ entry.activity.abbreviation }}</td>
+                        {% else %}
+                            <td> -- </td>
+                        {% endif %}
+                        <td>{{ entry.activity.description }}</td>
+                        <td>{{ entry.activity.parent }}</td>
+                        <td>{{ entry.activity.importance }}</td>
+                        <td>{{ entry.activity.urgency }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p>No entries in this plan.</p>
+        {% endif %}
+    </div>
+
+</body>
+</html> 

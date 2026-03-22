@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Daily Plan</title>
+</head>
+<body>
+    <h1>Create New Daily Plan</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div>
+            <label for="date">Date:</label>
+            <input type="date" id="date" name="date" required>
+        </div>
+
+        <div>
+            <label for="template">Template:</label>
+            <select id="template" name="template" required>
+                <option value="">Select a template</option>
+                {% for template in templates %}
+                    <option value="{{ template.id }}">{{ template.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if error %}
+            <div>
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <button type="submit">Create Plan</button>
+            <a href="{% url 'daily_plan_list' %}">Cancel</a>
+        </div>
+    </form>
+</body>
+</html> 

@@ -58,6 +58,7 @@ class Migration(migrations.Migration):
                 ('discretionary', models.BooleanField()),
                 ('target_date', models.DateField(blank=True, null=True)),
                 ('importance', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='timsy.Importance')),
+                ('active', models.BooleanField(default=True)),
             ],
         ),
         migrations.CreateModel(

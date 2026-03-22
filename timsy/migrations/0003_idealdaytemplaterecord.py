@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 ('duration', models.TimeField()),
                 ('activity', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='timsy.activity')),
                 ('place', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='timsy.place')),
-                ('template', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='timsy.idealdaytemplate')),
+                ('template', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='timsy.idealdaytemplate')),
             ],
         ),
     ]
