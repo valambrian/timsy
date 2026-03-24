@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% block plan_vs_fact_title %}Plan vs Fact Report{% endblock %}{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<style>
+    /* Plan vs Fact Report Styling */
+    .plan-vs-fact-table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    .plan-vs-fact-table th,
+    .plan-vs-fact-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+    }
+    
+    .plan-vs-fact-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+    
+    .plan-vs-fact-table .category-column {
+        text-align: left;
+        font-weight: bold;
+        background-color: #f9f9f9;
+    }
+    
+    .plan-vs-fact-table .timestamp {
+        text-align: right;
+        font-family: monospace;
+    }
+    
+    .plan-vs-fact-table .total-row {
+        font-weight: bold;
+        background-color: #f0f0f0;
+    }
+    
+    .plan-vs-fact-table .plan-column {
+        background-color: #e8f4fd;
+    }
+    
+    .plan-vs-fact-table .fact-column {
+        background-color: #fff2e8;
+    }
+    
+    .plan-vs-fact-table .diff-column {
+        background-color: #f0f8f0;
+    }
+    
+    .plan-vs-fact-table .diff-negative {
+        color: #d32f2f;
+        font-weight: bold;
+    }
+    
+    .plan-vs-fact-table .diff-positive {
+        color: #388e3c;
+        font-weight: bold;
+    }
+    
+    .navigation-links {
+        margin-bottom: 20px;
+    }
+    
+    .navigation-links a {
+        color: #1976d2;
+        text-decoration: none;
+        margin: 0 5px;
+    }
+    
+    .navigation-links a:hover {
+        text-decoration: underline;
+    }
+    
+    .report-title {
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .category-link {
+        color: #1976d2;
+        text-decoration: none;
+    }
+    
+    .category-link:hover {
+        text-decoration: underline;
+    }
+</style>
+{% block extra_plan_vs_fact_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<h3 class="report-title">{{ title }} 
+    <span class="navigation-links">(
+        {% if previous %}
+            <a href="{{ previous }}/">Previous</a>
+        {% endif %}
+
+        {% if previous and next %}
+            ,
+        {% endif %}
+
+        {% if next %}
+            <a href="{{ next }}/">Next</a>
+        {% endif %}
+    )</span>
+</h3>
+
+<table class="plan-vs-fact-table">
+    {% block table_headers %}
+    <tr>
+        <th class="category-column">Category</th>
+        <!-- This block should be overridden by child templates -->
+    </tr>
+    {% endblock %}
+    
+    {% block table_subheaders %}
+    <tr>
+        <th class="category-column"></th>
+        <!-- This block should be overridden by child templates -->
+    </tr>
+    {% endblock %}
+
+    {% block table_data %}
+    {% for record in records %}
+    <tr{% if record.description == "Total" %} class="total-row"{% endif %}>
+        {% if record.id %}
+            <td class="category-column">
+                <a href="{{ prefix }}{{ record.id }}{{ suffix }}/" class="category-link">{{ record.description }}</a>
+            </td>
+        {% else %}
+            <td class="category-column">{{ record.description }}</td>
+        {% endif %}
+        {% block record_data %}
+        <!-- Default implementation with diff styling logic -->
+        {% for time in record.times %}
+          {% if forloop.counter0|add:1|divisibleby:3 %}
+            <!-- This is a diff column (every 3rd column starting from index 2) -->
+            {% if record.importance != "Mandatory" %}
+              {% if time == "---" %}
+                <!-- Zero diff - no styling -->
+                <td class='timestamp'>{{ time }}</td>
+              {% elif time|first == "-" %}
+                <!-- Negative diff -->
+                {% if record.importance == "High" or record.importance == "Very High" %}
+                  <td class='timestamp' style='background-color: #ffcdd2;'>{{ time }}</td>
+                {% elif record.importance == "Medium" or record.importance == "Low" or record.importance == "Very Low" %}
+                  <td class='timestamp' style='background-color: #c8e6c9;'>{{ time }}</td>
+                {% else %}
+                  <td class='timestamp'>{{ time }}</td>
+                {% endif %}
+              {% else %}
+                <!-- Positive diff (non-zero) -->
+                {% if record.importance == "High" or record.importance == "Very High" %}
+                  <td class='timestamp' style='background-color: #c8e6c9;'>{{ time }}</td>
+                {% elif record.importance == "Medium" or record.importance == "Low" or record.importance == "Very Low" %}
+                  <td class='timestamp' style='background-color: #ffcdd2;'>{{ time }}</td>
+                {% else %}
+                  <td class='timestamp'>{{ time }}</td>
+                {% endif %}
+              {% endif %}
+            {% else %}
+              <!-- Mandatory importance - no styling -->
+              <td class='timestamp'>{{ time }}</td>
+            {% endif %}
+          {% else %}
+            <!-- Not a diff column -->
+            <td class='timestamp'>{{ time }}</td>
+          {% endif %}
+        {% endfor %}
+        {% endblock %}
+    </tr>
+    {% endfor %}
+    {% endblock %}
+</table>
+{% endblock %} 

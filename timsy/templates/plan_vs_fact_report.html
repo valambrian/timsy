@@ -1,0 +1,31 @@
+{% extends "plan_vs_fact_base.html" %}
+
+{% block plan_vs_fact_title %}Plan vs Fact Report{% endblock %}
+
+{% block table_headers %}
+<tr>
+    <th class="category-column">Category</th>
+    {% for place in places %}
+      <th colspan="3">{{ place }}</th>
+    {% endfor %}
+    <th colspan="3">Total</th>
+</tr>
+{% endblock %}
+
+{% block table_subheaders %}
+<tr>
+    <th class="category-column"></th>
+    {% for place in places %}
+      <th class="plan-column">Plan</th>
+      <th class="fact-column">Fact</th>
+      <th class="diff-column">Diff</th>
+    {% endfor %}
+    <th class="plan-column">Plan</th>
+    <th class="fact-column">Fact</th>
+    <th class="diff-column">Diff</th>
+</tr>
+{% endblock %}
+
+{% comment %}
+record_data block inherited from base template
+{% endcomment %} 

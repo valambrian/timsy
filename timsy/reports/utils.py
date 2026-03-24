@@ -12,14 +12,24 @@ def seconds_to_string(seconds: Optional[int]) -> str:
         seconds: Number of seconds to convert
         
     Returns:
-        Formatted time string in HH:MM format, or "----" if seconds is None or 0
+        Formatted time string in HH:MM format, or "---" if seconds is None
     """
     if not seconds:
-        return "----"
-    minutes = int(seconds / 60)
+        return "---"
+    
+    # Handle negative values
+    is_negative = seconds < 0
+    abs_seconds = abs(seconds)
+    
+    minutes = int(abs_seconds / 60)
     hours = int(minutes / 60)
     minutes -= 60 * hours
-    return "%d:%02d" % (hours, minutes)
+    
+    # Format with proper sign
+    if is_negative:
+        return "-%02d:%02d" % (hours, minutes)
+    else:
+        return "%02d:%02d" % (hours, minutes)
 
 def shift_date(report_date: date, days: int) -> Optional[date]:
     """Shift a date by a specified number of days, ensuring it doesn't exceed today's date.
@@ -132,7 +142,7 @@ def get_custom_navigation_urls(
         next_end_date = ActivityRecord.get_latest().date()
 
     prefix = "/timsy/reports/summary/"
-    suffix = "/%d/%d/%d/%d/%d/%d" % (
+    suffix = "/%d/%d/%d/%d/%d" % (
         start_date.year, start_date.month, start_date.day,
         end_date.year, end_date.month, end_date.day)
     previous = "/timsy/reports/summary/%s/%d/%d/%d/%d/%d/%d" % (

@@ -7,7 +7,7 @@ from django.template import loader
 from django.http import HttpRequest
 
 from timsy.models import ActivityRecord, Place
-from timsy.reports.summary import DailyBreakdownSummaryRecord
+from timsy.reports.daily_breakdown import DailyBreakdownSummaryRecord
 from timsy.reports.utils import (get_navigation_urls, get_report_title)
 
 # weekly-daily report

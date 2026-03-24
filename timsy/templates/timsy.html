@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Time Use{% endblock %}
+
+{% block content %}
+  <h4>Data Entry Forms</h4>
+  <ul>
+    <li><a href="/timsy/data/entry_log/">Daily Log</a></li>
+    <li><a href="/timsy/data/plans/daily/">Daily Plans</a></li>
+    <li><a href="/timsy/blueprints/">Blueprints</a></li>
+  </ul>
+
+  <h4>Reports</h4>
+  <ul>
+    <li><a href="/timsy/reports/log/latest/">Latest Daily Log</a></li>
+    <li><a href="/timsy/reports/summary/daily/latest/">Latest Daily Summary Report</a></li>
+    <li><a href="/timsy/reports/summary/daily_week_breakdown/latest/">Latest Daily Week Breakdown</a></li>
+    <li><a href="/timsy/reports/summary/my_weekly/latest/">Latest Saturday to Friday Summary Report</a></li>
+    <li><a href="/timsy/reports/plan-vs-fact/daily/latest/">Latest Daily Plan-vs-Fact Report</a></li>
+    <li><a href="/timsy/reports/plan-vs-fact/weekly/latest/">Latest Weekly Plan-vs-Fact Report</a></li>
+    <li><a href="/timsy/reports/summary/weekly/latest/">Latest Monday to Sunday Summary Report</a></li>
+    <li><a href="/timsy/reports/summary/monthly/latest/">Latest Monthly Summary Report</a></li>
+  </ul>
+
+  <h4>AJAX Requests</h4>
+  <ul>
+    <li><a href="/timsy/data/activities/last/">View the last activity</a></li>
+    <li><a href="/timsy/data/activities/tmd/">View "daily time use log" activity</a></li>
+  </ul>
+{% endblock %}

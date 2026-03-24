@@ -57,6 +57,24 @@ class Parent(models.Model):
         """
         return [(obj.id, obj.description) for obj in cls.objects.filter(active=True)]
 
+    @classmethod
+    def get_direct_children(cls, parent: str):
+        """Get direct children of a parent category based on abbreviation hierarchy.
+        
+        Args:
+            parent: Parent abbreviation ('ALL' for top-level, or specific parent like 'RT')
+            
+        Returns:
+            QuerySet: Parent objects that are direct children of the specified parent
+        """
+        if parent == "ALL":
+            # Return top-level parents (2-character abbreviations)
+            return cls.objects.filter(abbreviation__regex=r'^.{2}$').order_by('sort_order')
+        else:
+            # Return children with pattern: parent + '-' + 2 characters
+            pattern = f"^{parent}-.{{2}}$"
+            return cls.objects.filter(abbreviation__regex=pattern).order_by('sort_order')
+
 class ParentModelAdmin(admin.ModelAdmin):
     """Admin interface configuration for Parent model."""
     search_fields = ['id'] 

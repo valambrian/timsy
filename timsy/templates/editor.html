@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+{{ form.media }}
+<style>
+    input[readonly] {
+        background-color: #f0f0f0 !important;
+        color: #666 !important;
+    }
+    .invalid-place {
+        border: 2px solid red;
+        background-color: #fff0f0;
+    }
+    .delete-row {
+        color: #dc3545;
+        cursor: pointer;
+        padding: 5px;
+    }
+    .drag-handle {
+        cursor: move;
+        color: #6c757d;
+        padding: 5px;
+        user-select: none;
+    }
+    tr.dragging {
+        opacity: 0.5;
+        background-color: #f8f9fa;
+    }
+    tr.drag-over {
+        border-top: 2px solid #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% block header %}{% endblock %}
+
+<form action="{{ form_action }}" method="POST" onsubmit="return validateAllPlaces(validPlaces)"> {% csrf_token %}
+    {% block form_content %}{% endblock %}
+    
+    <div style="margin-top: 20px;">
+        <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script type="text/javascript">
+    // List of valid place abbreviations
+    const validPlaces = {{ form.place_list|safe }};
+
+    function setNextStartField(row) {
+        // Instead of calculating just the next field, recalculate all start times
+        // This ensures that all subsequent rows are updated correctly
+        recalculateAllStartTimes();
+        calculateTotalDuration();
+    }
+
+    function checkAbbreviation(row) {
+        const abbreviation = document.querySelector(`#id_abbreviation${row}, #id_form-${row}-abbreviation`).value;
+        if (!abbreviation) {
+            return;
+        }
+
+        request = createRequest();
+        if (request == null) {
+            alert("Unable to create request");
+            return;
+        }
+
+        const url = "/timsy/data/activities/" + abbreviation + "/";
+        request.open("GET", url, true);
+        request.onreadystatechange = function() { displayActivityDetail(row); };
+        request.send(null);
+    }
+
+    function displayActivityDetail(row) {
+        if (request.readyState == 4) {
+            if (request.status == 200) {
+                const record = eval('(' + request.responseText + ')');
+                if (record.description) {
+                    let index;
+                    document.querySelector(`#id_description${row}, #id_form-${row}-description`).value = record.description;
+                    let parent = document.querySelector(`#id_parent${row}, #id_form-${row}-parent`);
+                    for (index = 0; index < parent.length; index = index + 1) {
+                        if (parent.options[index].text == record.parent) {
+                            parent.selectedIndex = index;
+                        }
+                    }
+                    const importance = document.querySelector(`#id_importance${row}, #id_form-${row}-importance`);
+                    for (index = 0; index < importance.length; index = index + 1) {
+                        if (importance.options[index].text == record.importance) {
+                            importance.selectedIndex = index;
+                        }
+                    }
+                    const urgency = document.querySelector(`#id_urgency${row}, #id_form-${row}-urgency`);
+                    for (index = 0; index < urgency.length; index = index + 1) {
+                        if (urgency.options[index].text == record.urgency) {
+                            urgency.selectedIndex = index;
+                        }
+                    }
+                    const next_id = row + 1;
+                    const nextRowDurationField = document.querySelector(`#id_duration${next_id}, #id_form-${next_id}-duration`);
+                    if (nextRowDurationField) {
+                        nextRowDurationField.focus();
+                    }
+                }
+            }
+        }
+    }
+
+    // Place validation functions
+    function validatePlace(input, validPlaces) {
+        console.log('validatePlace called with:', input.value, 'validPlaces:', validPlaces);
+        const value = input.value.trim();
+        // Get the row number from the input name (e.g., "place1" -> 1 or "form-1-place" -> 1)
+        const rowNum = input.name.match(/(\d+)/)[0];
+        const durationInput = document.querySelector(`#id_duration${rowNum}, #id_form-${rowNum}-duration`);
+        const durationValue = durationInput.value.trim();
+        
+        // If duration is empty or "0:00", don't validate the place
+        if (!durationValue || durationValue === "0:00") {
+            input.classList.remove('invalid-place');
+            return true;
+        }
+        
+        // Only validate place if there's a duration
+        // Check both the original value and its uppercase version
+        const isValid = validPlaces.includes(value) || validPlaces.includes(value.toUpperCase());
+        console.log('Place validation result:', isValid);
+        
+        // Update visual feedback
+        input.classList.toggle('invalid-place', !isValid);
+        
+        return isValid;
+    }
+
+    function validateAllPlaces(validPlaces) {
+        const placeInputs = document.querySelectorAll('input[name^="place"], input[name^="form-"][name$="-place"]');
+        let isValid = true;
+        let firstInvalidInput = null;
+        
+        placeInputs.forEach(input => {
+            if (!validatePlace(input, validPlaces)) {
+                isValid = false;
+                if (!firstInvalidInput) {
+                    firstInvalidInput = input;
+                }
+            }
+        });
+        
+        if (firstInvalidInput) {
+            firstInvalidInput.focus();
+        }
+        
+        return isValid;
+    }
+
+    function setupPlaceValidation(validPlaces) {
+        console.log('Setting up place validation with places:', validPlaces);
+        const placeInputs = document.querySelectorAll('input[name^="place"], input[name^="form-"][name$="-place"]');
+        console.log('Found place inputs:', placeInputs.length);
+        placeInputs.forEach(input => {
+            // Validate only when the field loses focus
+            input.addEventListener('blur', function() {
+                console.log('Validating place on blur:', this.value, 'against places:', validPlaces);
+                validatePlace(this, validPlaces);
+            });
+        });
+    }
+
+    // Duration calculation functions
+    function calculateTotalDuration() {
+        let totalHours = 0;
+        let totalMinutes = 0;
+        const rows = document.querySelectorAll('.record-row');
+        
+        rows.forEach(row => {
+            const durationInput = row.querySelector('input[id^="id_duration"]');
+            if (durationInput && durationInput.value) {
+                const durationParts = durationInput.value.split(':');
+                if (durationParts.length === 2) {
+                    const hours = parseInt(durationParts[0], 10) || 0;
+                    const minutes = parseInt(durationParts[1], 10) || 0;
+                    totalHours += hours;
+                    totalMinutes += minutes;
+                } else if (durationParts.length === 1) {
+                    // Handle case where only minutes are provided
+                    totalMinutes += parseInt(durationParts[0], 10) || 0;
+                }
+            }
+        });
+
+        // Convert excess minutes to hours
+        totalHours += Math.floor(totalMinutes / 60);
+        totalMinutes = totalMinutes % 60;
+
+        // Update display if elements exist
+        const totalDurationElement = document.getElementById('total-duration');
+        if (totalDurationElement) {
+            totalDurationElement.textContent = 
+                `${String(totalHours).padStart(2, '0')}:${String(totalMinutes).padStart(2, '0')}`;
+        }
+        
+        // Calculate remaining time
+        let remainingHours = 24 - totalHours;
+        let remainingMinutes = 0;
+        
+        if (totalMinutes > 0) {
+            remainingHours -= 1;
+            remainingMinutes = 60 - totalMinutes;
+        }
+
+        const remainingTimeElement = document.getElementById('remaining-time');
+        if (remainingTimeElement) {
+            remainingTimeElement.textContent = 
+                `${String(remainingHours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`;
+        }
+
+        // Show warning if total duration exceeds 24 hours
+        const warning = document.getElementById('duration-warning');
+        if (warning) {
+            if (totalHours >= 24 && totalMinutes > 0) {
+                warning.style.display = 'inline';
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+
+        return { hours: totalHours, minutes: totalMinutes };
+    }
+
+    function recalculateAllStartTimes() {
+        const rows = document.querySelectorAll('.record-row');
+        
+        for (let i = 0; i < rows.length; i++) {
+            const currentRow = rows[i];
+            const startInput = currentRow.querySelector('input[id^="id_start"]');
+            
+            if (i === 0) {
+                // First row keeps its current start time or defaults to 00:00
+                if (!startInput.value) {
+                    startInput.value = '00:00';
+                }
+            } else {
+                // Calculate start time based on previous row
+                const prevRow = rows[i - 1];
+                const prevStartInput = prevRow.querySelector('input[id^="id_start"]');
+                const prevDurationInput = prevRow.querySelector('input[id^="id_duration"]');
+                
+                if (prevStartInput && prevDurationInput && prevDurationInput.value) {
+                    const [prevHours, prevMinutes] = prevStartInput.value.split(':').map(Number);
+                    const prevDurationParts = prevDurationInput.value.split(':');
+                    
+                    let durationHours = 0;
+                    let durationMinutes = 0;
+                    
+                    if (prevDurationParts.length === 2) {
+                        durationHours = parseInt(prevDurationParts[0], 10) || 0;
+                        durationMinutes = parseInt(prevDurationParts[1], 10) || 0;
+                    } else if (prevDurationParts.length === 1) {
+                        // Handle case where only minutes are provided
+                        durationMinutes = parseInt(prevDurationParts[0], 10) || 0;
+                    }
+                    
+                    let newHours = prevHours + durationHours;
+                    let newMinutes = prevMinutes + durationMinutes;
+                    
+                    if (newMinutes >= 60) {
+                        newHours += Math.floor(newMinutes / 60);
+                        newMinutes = newMinutes % 60;
+                    }
+                    
+                    if (startInput) {
+                        startInput.value = `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+                    }
+                }
+            }
+        }
+    }
+
+    function focusFirstEmptyRecord() {
+        const rows = document.querySelectorAll('.record-row');
+        for (let i = 0; i < rows.length; i++) {
+            const durationInput = rows[i].querySelector('input[id^="id_duration"]');
+            if (durationInput && !durationInput.value) {
+                // Set focus to the duration input
+                durationInput.focus();
+                break;
+            }
+        }
+    }
+
+    function renumberFormFields() {
+        const rows = document.querySelectorAll('.record-row');
+        
+        rows.forEach((row, index) => {
+            // Update data-index attribute
+            row.setAttribute('data-index', index);
+            
+            // Find all form inputs and selects in this row
+            const inputs = row.querySelectorAll('input, select');
+            
+            inputs.forEach(input => {
+                // Extract the field type from the current name (e.g., "duration" from "duration3")
+                const currentName = input.name;
+                const fieldType = currentName.replace(/\d+$/, ''); // Remove trailing numbers
+                
+                // Update name attribute
+                input.name = fieldType + index;
+                
+                // Update id attribute if it exists
+                if (input.id) {
+                    const currentId = input.id;
+                    const idPrefix = currentId.replace(/\d+$/, ''); // Remove trailing numbers
+                    input.id = idPrefix + index;
+                }
+            });
+        });
+    }
+
+    function formatDurationInput(input) {
+        const value = input.value.trim();
+        if (!value) return;
+        
+        // If it's already in HH:MM format, leave it alone
+        if (value.includes(':')) return;
+        
+        // If it's just a number, treat it as minutes and format as HH:MM
+        const minutes = parseInt(value, 10);
+        if (!isNaN(minutes)) {
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            input.value = `${String(hours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`;
+        }
+    }
+
+    function setupDurationFormatting() {
+        const durationInputs = document.querySelectorAll('input[name^="duration"], input[id^="id_duration"]');
+        durationInputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                formatDurationInput(this);
+            });
+        });
+    }
+
+    // Initialize place validation
+    document.addEventListener('DOMContentLoaded', function() {
+        setupPlaceValidation(validPlaces);
+        setupDurationFormatting();
+        
+        // Initialize duration calculations if duration summary exists
+        const durationSummary = document.querySelector('.duration-summary');
+        if (durationSummary) {
+            const table = document.getElementById('records-table');
+            if (table) {
+                table.addEventListener('input', function(e) {
+                    if (e.target.id.startsWith('id_duration')) {
+                        calculateTotalDuration();
+                        // Recalculate start times when duration changes
+                        recalculateAllStartTimes();
+                    }
+                });
+                
+                // Initial calculation and focus
+                calculateTotalDuration();
+                recalculateAllStartTimes();
+                focusFirstEmptyRecord();
+            }
+        }
+        
+        // Initialize drag and drop functionality
+        const table = document.querySelector('table');
+        if (table) {
+            const tbody = table.querySelector('tbody');
+            let draggedRow = null;
+
+            // Make drag handles draggable
+            const dragHandles = tbody.querySelectorAll('.drag-handle');
+            dragHandles.forEach(handle => {
+                handle.addEventListener('dragstart', function(e) {
+                    draggedRow = this.closest('tr');
+                    draggedRow.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                handle.addEventListener('dragend', function() {
+                    if (draggedRow) {
+                        draggedRow.classList.remove('dragging');
+                        draggedRow = null;
+                        // Remove drag-over class from all rows
+                        const rows = tbody.querySelectorAll('tr.record-row');
+                        rows.forEach(r => r.classList.remove('drag-over'));
+                        
+                        // Recalculate all start times after drag operation
+                        recalculateAllStartTimes();
+                        calculateTotalDuration();
+                        renumberFormFields();
+                        setupDurationFormatting();
+                    }
+                });
+            });
+
+            // Handle drag over on rows
+            const rows = tbody.querySelectorAll('tr.record-row');
+            rows.forEach(row => {
+                row.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    if (draggedRow && this !== draggedRow) {
+                        const rect = this.getBoundingClientRect();
+                        const midpoint = rect.top + rect.height / 2;
+                        
+                        // Remove drag-over class from all rows
+                        rows.forEach(r => r.classList.remove('drag-over'));
+                        
+                        // Add drag-over class to current row
+                        this.classList.add('drag-over');
+                        
+                        if (e.clientY < midpoint) {
+                            tbody.insertBefore(draggedRow, this);
+                        } else {
+                            tbody.insertBefore(draggedRow, this.nextSibling);
+                        }
+                    }
+                });
+
+                row.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+            });
+        }
+    });
+</script>
+{% endblock %} 
