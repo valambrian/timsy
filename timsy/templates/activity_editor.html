@@ -1,0 +1,230 @@
+{% extends "editor.html" %}
+{% load timsy_extras %}
+
+{% block title %}{{ parent.description }} Activities{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<style>
+    #activities-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+    #activities-table th:nth-child(1),
+    #activities-table td:nth-child(1) {
+        width: 8%; /* Activity ID */
+    }
+    #activities-table th:nth-child(2),
+    #activities-table td:nth-child(2) {
+        width: 5%; /* Sort Order */
+    }
+    #activities-table th:nth-child(3),
+    #activities-table td:nth-child(3) {
+        width: 10%; /* Abbreviation */
+    }
+    #activities-table th:nth-child(4),
+    #activities-table td:nth-child(4) {
+        width: 40%; /* Description */
+    }
+    #activities-table th:nth-child(5),
+    #activities-table td:nth-child(5) {
+        width: 15%; /* Parent */
+    }
+    #activities-table th:nth-child(6),
+    #activities-table td:nth-child(6) {
+        width: 12%; /* Importance */
+    }
+    #activities-table th:nth-child(7),
+    #activities-table td:nth-child(7) {
+        width: 12%; /* Urgency */
+    }
+    #activities-table input,
+    #activities-table select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+</style>
+{% endblock %}
+
+{% block header %}
+<h3>{{ parent.description }} Activities</h3>
+{% endblock %}
+
+{% block form_content %}
+<!-- Display success/error messages -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<!-- Direct Children Section (conditionally displayed) -->
+{% if children %}
+<h4>Subcategories</h4>
+<table class="table table-striped" border="1">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Sort Order</th>
+            <th>Description</th>
+            <th>Importance</th>
+            <th>Active</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for child in children %}
+        <tr>
+            <td>{{ child.id }}</td>
+            <td>{{ child.sort_order }}</td>
+            <td><a href="{% url 'activity_editor' child.id %}">{{ child.description }}</a></td>
+            <td>{{ child.importance.description }}</td>
+            <td>{% if child.active %}Active{% else %}Inactive{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<br>
+{% endif %}
+
+<!-- Activities Section -->
+<h4>Activities</h4>
+<table class="table table-striped" border="1" id="activities-table">
+    <thead>
+        <tr>
+            <th>Activity ID</th>
+            <th>Sort Order</th>
+            <th>Abbreviation</th>
+            <th>Description</th>
+            <th>Parent</th>
+            <th>Importance</th>
+            <th>Urgency</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for activity in activities %}
+        <tr class="record-row">
+            <td>
+                <input type="text" name="activity_id{{ forloop.counter0 }}" value="{{ activity.id }}" readonly class="form-control">
+                {% if errors and forloop.counter0 in errors %}
+                    <div class="text-danger small">
+                        {% for error in errors|get_item:forloop.counter0 %}
+                            {{ error }}<br>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </td>
+            <td>
+                <input type="number" name="sort_order{{ forloop.counter0 }}" 
+                       value="{% if preserved_data and forloop.counter0 in preserved_data %}{{ preserved_data|get_item:forloop.counter0|get_item:'sort_order' }}{% else %}{{ activity.sort_order|default:'' }}{% endif %}" 
+                       class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <input type="text" name="abbreviation{{ forloop.counter0 }}" 
+                       value="{% if preserved_data and forloop.counter0 in preserved_data %}{{ preserved_data|get_item:forloop.counter0|get_item:'abbreviation' }}{% else %}{{ activity.abbreviation }}{% endif %}" 
+                       maxlength="10" class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <input type="text" name="description{{ forloop.counter0 }}" 
+                       value="{% if preserved_data and forloop.counter0 in preserved_data %}{{ preserved_data|get_item:forloop.counter0|get_item:'description' }}{% else %}{{ activity.description }}{% endif %}" 
+                       maxlength="200" class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <select name="parent{{ forloop.counter0 }}" class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
+                    <option value="">---------</option>
+                    {% for parent_id, parent_desc in form.parent_list %}
+                    <option value="{{ parent_id }}" 
+                            {% if preserved_data and forloop.counter0 in preserved_data %}
+                                {% if parent_id == preserved_data|get_item:forloop.counter0|get_item:'parent' %}selected{% endif %}
+                            {% elif parent_id == activity.parent.id %}selected{% endif %}>{{ parent_desc }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="importance{{ forloop.counter0 }}" class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
+                    <option value="">---------</option>
+                    {% for importance_id, importance_desc in form.importance_list %}
+                    <option value="{{ importance_id }}" 
+                            {% if preserved_data and forloop.counter0 in preserved_data %}
+                                {% if importance_id == preserved_data|get_item:forloop.counter0|get_item:'importance'|add:0 %}selected{% endif %}
+                            {% elif importance_id == activity.importance.id %}selected{% endif %}>{{ importance_desc }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="urgency{{ forloop.counter0 }}" class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
+                    <option value="">---------</option>
+                    {% for urgency_id, urgency_desc in form.urgency_list %}
+                    <option value="{{ urgency_id }}" 
+                            {% if preserved_data and forloop.counter0 in preserved_data %}
+                                {% if urgency_id == preserved_data|get_item:forloop.counter0|get_item:'urgency'|add:0 %}selected{% endif %}
+                            {% elif urgency_id == activity.urgency.id %}selected{% endif %}>{{ urgency_desc }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        {% endfor %}
+        
+        <!-- 5 empty rows for new activities -->
+        {% for i in "12345" %}
+        {% with row_index=activities|length|add:forloop.counter0 %}
+        <tr class="record-row">
+            <td>
+                <input type="text" name="activity_id{{ row_index }}" value="" readonly class="form-control">
+                {% if errors and row_index in errors %}
+                    <div class="text-danger small">
+                        {% for error in errors|get_item:row_index %}
+                            {{ error }}<br>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </td>
+            <td>
+                <input type="number" name="sort_order{{ row_index }}" 
+                       value="{% if preserved_data and row_index in preserved_data %}{{ preserved_data|get_item:row_index|get_item:'sort_order' }}{% endif %}" 
+                       class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <input type="text" name="abbreviation{{ row_index }}" 
+                       value="{% if preserved_data and row_index in preserved_data %}{{ preserved_data|get_item:row_index|get_item:'abbreviation' }}{% endif %}" 
+                       maxlength="10" class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <input type="text" name="description{{ row_index }}" 
+                       value="{% if preserved_data and row_index in preserved_data %}{{ preserved_data|get_item:row_index|get_item:'description' }}{% endif %}" 
+                       maxlength="200" class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <select name="parent{{ row_index }}" class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
+                    <option value="">---------</option>
+                    {% for parent_id, parent_desc in form.parent_list %}
+                    <option value="{{ parent_id }}" 
+                            {% if preserved_data and row_index in preserved_data %}
+                                {% if parent_id == preserved_data|get_item:row_index|get_item:'parent' %}selected{% endif %}
+                            {% elif parent_id == parent.id %}selected{% endif %}>{{ parent_desc }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="importance{{ row_index }}" class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
+                    <option value="">---------</option>
+                    {% for importance_id, importance_desc in form.importance_list %}
+                    <option value="{{ importance_id }}"
+                            {% if preserved_data and row_index in preserved_data and importance_id == preserved_data|get_item:row_index|get_item:'importance'|add:0 %}selected{% endif %}>{{ importance_desc }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="urgency{{ row_index }}" class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
+                    <option value="">---------</option>
+                    {% for urgency_id, urgency_desc in form.urgency_list %}
+                    <option value="{{ urgency_id }}"
+                            {% if preserved_data and row_index in preserved_data and urgency_id == preserved_data|get_item:row_index|get_item:'urgency'|add:0 %}selected{% endif %}>{{ urgency_desc }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %} 

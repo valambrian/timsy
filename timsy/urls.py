@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import views
 from .views import (
+    activity_views,
     blueprint_views,
     daily_breakdown_views,
     daily_log_views,
@@ -42,4 +43,6 @@ urlpatterns = [
     path('blueprints/', blueprint_views.blueprint_list_view, name='blueprint_list'),
     path('blueprints/<int:id>/', blueprint_views.blueprint_detail_view, name='blueprint_detail'),
     path('blueprints/<int:id>/edit/', blueprint_views.blueprint_edit_view, name='blueprint_edit'),
+    path('parents/top/', activity_views.top_parents_list, name='top_parents_list'),
+    path('activities/<slug:parent_id>/', activity_views.activity_editor, name='activity_editor'),
 ]
