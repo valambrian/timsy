@@ -96,11 +96,18 @@ def blueprint_edit_view(request: HttpRequest, id: int) -> HttpResponse:
     entries = blueprint.get_entries()
 
     if request.method == 'POST':
-        # Start with a datetime at midnight
-        current_datetime = datetime.combine(date.today(), time(hour=0, minute=0))
-
         # Delete all existing entries for this blueprint
         BlueprintEntry.objects.filter(blueprint=blueprint).delete()
+
+        # Check if there's a start time for the first entry, otherwise default to midnight
+        first_start_str = request.POST.get('start0', '')
+        if first_start_str:
+            # Parse the submitted start time
+            first_start_time = datetime.strptime(first_start_str, '%H:%M').time()
+            current_datetime = datetime.combine(date.today(), first_start_time)
+        else:
+            # Default to midnight if no start time provided
+            current_datetime = datetime.combine(date.today(), time(hour=0, minute=0))
 
         # Process each row until we find an empty duration
         i = 0
@@ -115,7 +122,44 @@ def blueprint_edit_view(request: HttpRequest, id: int) -> HttpResponse:
             parent = Parent.objects.get(id=request.POST[f'parent{i}'])
             importance = Importance.objects.get(id=request.POST[f'importance{i}'])
             urgency = Urgency.objects.get(id=request.POST[f'urgency{i}'])
-            hours, minutes = parse_duration_string(duration_str)
+            
+            # Parse duration with error handling
+            try:
+                hours, minutes = parse_duration_string(duration_str)
+            except Exception as e:
+                # Print detailed error information
+                print(f"ERROR: Failed to parse duration string for blueprint entry {i}")
+                print(f"  Blueprint ID: {blueprint.id}")
+                print(f"  Blueprint Name: {blueprint.name}")
+                print(f"  Entry Index: {i}")
+                print(f"  Duration String: '{duration_str}'")
+                print(f"  Abbreviation: '{abbreviation}'")
+                print(f"  Description: '{description}'")
+                print(f"  Error: {str(e)}")
+                
+                # Try to fix common issues with duration string
+                fixed_duration_str = duration_str.strip()
+                
+                # If duration starts with ":", add "0" at the beginning
+                if fixed_duration_str.startswith(':'):
+                    fixed_duration_str = '0' + fixed_duration_str
+                    print(f"  Fixed duration string: '{fixed_duration_str}'")
+                
+                # If duration is just minutes (e.g., ":30"), make it "0:30"
+                if fixed_duration_str.count(':') == 1 and fixed_duration_str.split(':')[0] == '':
+                    fixed_duration_str = '0' + fixed_duration_str
+                    print(f"  Fixed duration string: '{fixed_duration_str}'")
+                
+                # Try parsing again with the fixed string
+                try:
+                    hours, minutes = parse_duration_string(fixed_duration_str)
+                    print(f"  Successfully parsed fixed duration: {hours}h {minutes}m")
+                except Exception as e2:
+                    print(f"  Failed to parse even after fixing: {str(e2)}")
+                    print(f"  Skipping this entry and continuing...")
+                    i += 1
+                    continue
+            
             duration = time(hour=hours, minute=minutes)
             place = Place.objects.get(abbreviation=request.POST[f'place{i}'].upper())
 
@@ -148,10 +192,31 @@ def blueprint_edit_view(request: HttpRequest, id: int) -> HttpResponse:
         'place_list': Place.get_abbreviations()
     }
 
+    # Get available blueprints for blueprint-to-blueprint feature
+    # Exclude current blueprint and include only active blueprints
+    available_blueprints = Blueprint.objects.filter(
+        is_active=True
+    ).exclude(id=id)
+
+    # Prepare available blueprints data for JavaScript consumption
+    blueprints_data = []
+    for blueprint_item in available_blueprints:
+        blueprint_entries = blueprint_item.get_entries()
+        start_time = blueprint_entries[0].start if blueprint_entries else None
+        blueprints_data.append({
+            'id': blueprint_item.id,
+            'name': blueprint_item.name,
+            'start_time': start_time.strftime('%H:%M') if start_time else None,
+            'active': blueprint_item.is_active,
+            'entry_count': len(blueprint_entries)
+        })
+
     template = loader.get_template('blueprint_edit.html')
     context: Dict[str, Any] = {
         'entries': entries,
         'blueprint': blueprint,
-        'form': form
+        'form': form,
+        'available_blueprints': available_blueprints,
+        'blueprints_data': json.dumps(blueprints_data)
     }
     return HttpResponse(template.render(context, request)) 

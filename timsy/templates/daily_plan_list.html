@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Plans{% endblock %}
+
+{% block content %}
+    <h3>Daily Plans</h3>
+    
+    <ul>
+        <li><a href="{% url 'daily_plan_create' %}">New Plan</a></li>
+
+    {% if plans %}
+        {% for plan in plans %}
+            <li>
+                {% now "Y-m-d" as today %}
+                {% if plan.date|date:"Y-m-d" == today %}
+                    <strong>TODAY - {{ plan.date|date:"l, F j, Y" }}:</strong>
+                {% else %}
+                    {{ plan.date|date:"l, F j, Y" }}:
+                {% endif %}
+                    <a href="{% url 'daily_plan_view' plan.date.year plan.date.month plan.date.day %}">view,</a>
+                    <a href="{% url 'daily_plan_edit' plan.date.year plan.date.month plan.date.day %}">edit</a>
+            </li>
+        {% endfor %}
+    {% endif %}
+
+    </ul>
+{% endblock %}
