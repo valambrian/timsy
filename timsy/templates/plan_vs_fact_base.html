@@ -141,7 +141,7 @@
         {% for time in record.times %}
           {% if forloop.counter0|add:1|divisibleby:3 %}
             <!-- This is a diff column (every 3rd column starting from index 2) -->
-            {% if record.importance != "Mandatory" %}
+            {% if record.importance != "Mandatory" and record.importance != "Medium" %}
               {% if time == "---" %}
                 <!-- Zero diff - no styling -->
                 <td class='timestamp'>{{ time }}</td>
@@ -149,7 +149,7 @@
                 <!-- Negative diff -->
                 {% if record.importance == "High" or record.importance == "Very High" %}
                   <td class='timestamp' style='background-color: #ffcdd2;'>{{ time }}</td>
-                {% elif record.importance == "Medium" or record.importance == "Low" or record.importance == "Very Low" %}
+                {% elif record.importance == "Low" or record.importance == "Very Low" %}
                   <td class='timestamp' style='background-color: #c8e6c9;'>{{ time }}</td>
                 {% else %}
                   <td class='timestamp'>{{ time }}</td>
@@ -158,14 +158,14 @@
                 <!-- Positive diff (non-zero) -->
                 {% if record.importance == "High" or record.importance == "Very High" %}
                   <td class='timestamp' style='background-color: #c8e6c9;'>{{ time }}</td>
-                {% elif record.importance == "Medium" or record.importance == "Low" or record.importance == "Very Low" %}
+                {% elif record.importance == "Low" or record.importance == "Very Low" %}
                   <td class='timestamp' style='background-color: #ffcdd2;'>{{ time }}</td>
                 {% else %}
                   <td class='timestamp'>{{ time }}</td>
                 {% endif %}
               {% endif %}
             {% else %}
-              <!-- Mandatory importance - no styling -->
+              <!-- Mandatory and Medium importance - no styling -->
               <td class='timestamp'>{{ time }}</td>
             {% endif %}
           {% else %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load timsy_extras %}
+
+{% block title %}Daily Plan - {{ plan.date|date:"F j, Y" }}{% endblock %}
+
+{% block content %}
+    <div>
+        <h3>Daily Plan for {{ plan.date|date:"F j, Y" }}</h3>
+    </div>
+
+    <div>
+        {% if plan.get_entries %}
+            <table border="1">
+                <tr>
+                    <th>Start</th>
+                    <th>Duration</th>
+                    <th>Place</th>
+                    <th>Abbreviation</th>
+                    <th>Activity</th>
+                    <th>Parent</th>
+                    <th>Importance</th>
+                    <th>Urgency</th>
+                </tr>
+                {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.start|time_string }}</td>
+                        <td>{{ entry.duration|time:"H:i" }}</td>
+                        <td>{{ entry.place.abbreviation }}</td>
+                        {% if entry.activity.abbreviation %}
+                            <td>{{ entry.activity.abbreviation }}</td>
+                        {% else %}
+                            <td> -- </td>
+                        {% endif %}
+                        <td>{{ entry.activity.description }}</td>
+                        <td>{{ entry.activity.parent.description }}</td>
+                        <td>{{ entry.activity.importance.description }}</td>
+                        <td>{{ entry.activity.urgency.description }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p>No entries in this plan.</p>
+        {% endif %}
+    </div>
+{% endblock %} 

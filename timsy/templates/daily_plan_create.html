@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Create Daily Plan{% endblock %}
+
+{% block content %}
+    <h3>Create New Daily Plan</h3>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div>
+            <label for="date">Date:</label>
+            <input type="date" id="date" name="date" required>
+        </div>
+
+        {% if error %}
+            <div>
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <button type="submit">Create Plan</button>
+            <a href="{% url 'daily_plan_list' %}">Cancel</a>
+        </div>
+    </form>
+{% endblock %} 

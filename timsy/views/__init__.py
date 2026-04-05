@@ -1,3 +1,4 @@
+from .activity_views import *
 from .daily_breakdown_views import *
 from .daily_log_views import *
 from .daily_plan_views import *

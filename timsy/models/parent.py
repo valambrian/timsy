@@ -13,14 +13,12 @@ class Parent(models.Model):
     Attributes:
         id (str): Unique identifier for the parent category (max 50 chars)
         sort_order (int): Order in which parent categories should be displayed
-        abbreviation (str): Short abbreviation for the parent category (max 5 chars)
         description (str): Detailed description of the parent category (max 200 chars)
         importance (Importance): Foreign key to the importance level
         active (bool): Whether the parent category is currently active
     """
     id = models.CharField(max_length=50, primary_key=True)
     sort_order = models.IntegerField()
-    abbreviation = models.CharField(max_length=5)
     description = models.CharField(max_length=200)
     importance = models.ForeignKey(Importance, on_delete=models.PROTECT)
     active = models.BooleanField(default=True)
@@ -59,21 +57,21 @@ class Parent(models.Model):
 
     @classmethod
     def get_direct_children(cls, parent: str):
-        """Get direct children of a parent category based on abbreviation hierarchy.
+        """Get direct children of a parent category based on id hierarchy.
         
         Args:
-            parent: Parent abbreviation ('ALL' for top-level, or specific parent like 'RT')
+            parent: Parent id ('ALL' for top-level, or specific parent like 'RT')
             
         Returns:
             QuerySet: Parent objects that are direct children of the specified parent
         """
         if parent == "ALL":
-            # Return top-level parents (2-character abbreviations)
-            return cls.objects.filter(abbreviation__regex=r'^.{2}$').order_by('sort_order')
+            # Return top-level parents (2-character ids)
+            return cls.objects.filter(id__regex=r'^.{2}$').order_by('sort_order')
         else:
             # Return children with pattern: parent + '-' + 2 characters
             pattern = f"^{parent}-.{{2}}$"
-            return cls.objects.filter(abbreviation__regex=pattern).order_by('sort_order')
+            return cls.objects.filter(id__regex=pattern).order_by('sort_order')
 
 class ParentModelAdmin(admin.ModelAdmin):
     """Admin interface configuration for Parent model."""

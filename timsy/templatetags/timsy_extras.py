@@ -35,6 +35,17 @@ def duration_format(duration):
     
     return f"{hours:02d}:{minutes:02d}"
 
+@register.filter
+def get_item(dictionary, key):
+    """Get an item from a dictionary using a variable key."""
+    if dictionary is None:
+        return None
+    try:
+        return dictionary.get(key)
+    except (AttributeError, TypeError):
+        return None
+
 register.filter('times', times)
 register.filter('time_string', time_string)
 register.filter('timedelta_string', timedelta_string)
+register.filter('get_item', get_item)
