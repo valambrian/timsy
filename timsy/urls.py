@@ -40,6 +40,7 @@ urlpatterns = [
     path('data/plans/daily/create/', views.daily_plan_create, name='daily_plan_create'),
     path('data/plans/daily/<int:year>/<int:month>/<int:day>/', views.daily_plan_view, name='daily_plan_view'),
     path('data/plans/daily/<int:year>/<int:month>/<int:day>/edit/', views.daily_plan_edit, name='daily_plan_edit'),
+    path('data/plans/daily/<int:year>/<int:month>/<int:day>/toggle-active/', views.daily_plan_toggle_active, name='daily_plan_toggle_active'),
     path('api/blueprints/<int:blueprint_id>/entries/', daily_plan_views.blueprint_entries_api, name='blueprint_entries_api'),
     path('blueprints/', blueprint_views.blueprint_list_view, name='blueprint_list'),
     path('blueprints/<int:id>/', blueprint_views.blueprint_detail_view, name='blueprint_detail'),

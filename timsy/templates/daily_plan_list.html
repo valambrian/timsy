@@ -4,7 +4,15 @@
 
 {% block content %}
     <h3>Daily Plans</h3>
-    
+
+    <p>
+        {% if show_all %}
+            <a href="{% url 'daily_plan_list' %}">Active only</a> | All
+        {% else %}
+            Active only | <a href="{% url 'daily_plan_list' %}?show=all">All</a>
+        {% endif %}
+    </p>
+
     <ul>
         <li><a href="{% url 'daily_plan_create' %}">New Plan</a></li>
 
@@ -18,7 +26,13 @@
                     {{ plan.date|date:"l, F j, Y" }}:
                 {% endif %}
                     <a href="{% url 'daily_plan_view' plan.date.year plan.date.month plan.date.day %}">view,</a>
-                    <a href="{% url 'daily_plan_edit' plan.date.year plan.date.month plan.date.day %}">edit</a>
+                    <a href="{% url 'daily_plan_edit' plan.date.year plan.date.month plan.date.day %}">edit,</a>
+                    {% if show_all %}
+                        <a href="{% url 'daily_plan_toggle_active' plan.date.year plan.date.month plan.date.day %}?show=all">{% if plan.active %}deactivate{% else %}activate{% endif %}</a>
+                        ({% if plan.active %}Active{% else %}Inactive{% endif %})
+                    {% else %}
+                        <a href="{% url 'daily_plan_toggle_active' plan.date.year plan.date.month plan.date.day %}">{% if plan.active %}deactivate{% else %}activate{% endif %}</a>
+                    {% endif %}
             </li>
         {% endfor %}
     {% endif %}

@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
+from django.urls import reverse
+from urllib.parse import urlencode
 from ..models import DailyPlan, Activity, Place, DailyPlanEntry, Blueprint
 from ..models.urgency import Urgency
 from ..models.importance import Importance
@@ -12,12 +14,14 @@ from django.db.models import Case, When, Value, IntegerField
 
 def daily_plan_list(request):
     """View for displaying a list of daily plans.
-    
-    Shows all daily plans with today's plan first (if available), 
-    then the rest ordered by date with the most recent first.
+
+    Shows active daily plans by default, or all plans when show=all.
+    Today's plan is listed first (if available), then the rest ordered
+    by date with the most recent first.
     """
     today = date.today()
-    
+    show_all = request.GET.get('show') == 'all'
+
     # Create custom ordering: today's plan first (order=0), then by -date
     plans = DailyPlan.objects.annotate(
         custom_order=Case(
@@ -25,11 +29,28 @@ def daily_plan_list(request):
             default=Value(1),
             output_field=IntegerField()
         )
-    ).order_by('custom_order', '-date')
-    
+    )
+    if not show_all:
+        plans = plans.filter(active=True)
+    plans = plans.order_by('custom_order', '-date')
+
     return render(request, 'daily_plan_list.html', {
-        'plans': plans
+        'plans': plans,
+        'show_all': show_all,
     })
+
+
+def daily_plan_toggle_active(request, year, month, day):
+    """Toggle a daily plan's active flag and return to the list."""
+    plan_date = date(year, month, day)
+    plan = get_object_or_404(DailyPlan, date=plan_date)
+    plan.active = not plan.active
+    plan.save(update_fields=['active'])
+
+    url = reverse('daily_plan_list')
+    if request.GET.get('show') == 'all':
+        url += '?' + urlencode({'show': 'all'})
+    return redirect(url)
 
 def daily_plan_create(request):
     """View for creating a new daily plan.

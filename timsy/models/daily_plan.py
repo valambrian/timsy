@@ -12,9 +12,11 @@ class DailyPlan(models.Model):
     
     Attributes:
         date (date): The date for which this plan is created
+        active (bool): Whether this plan is currently active
     """
     date = models.DateField(unique=True)  # Only one plan per date
-    
+    active = models.BooleanField(default=True)
+
     def __str__(self):
         """Return a string representation of the daily plan.
         
