@@ -16,6 +16,7 @@ pyvenv.cfg
 db.sqlite3
 local_settings.py
 media/
+staticfiles/
 
 # Personal time-use data
 timsy/data/

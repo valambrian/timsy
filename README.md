@@ -52,18 +52,19 @@ timsy/                    # Repo root
 1. Clone the repository
 2. Create a virtual environment:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 3. Install dependencies:
    ```bash
-   pip install django
+   pip install -r requirements.txt
    ```
-4. Run migrations:
+4. Copy `.env.example` to `.env` and fill in `SECRET_KEY` and `DB_PASSWORD` (and any other DB settings that differ from the defaults)
+5. Run migrations:
    ```bash
    python manage.py migrate
    ```
-5. Start the development server:
+6. Start the development server:
    ```bash
    python manage.py runserver
    ```
