@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ parent.description }} Program{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+<style>
+    .program-date,
+    .program-actions {
+        text-align: right;
+    }
+    .program-actions form {
+        display: inline;
+    }
+    .program-description {
+        width: 100%;
+        box-sizing: border-box;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h3>{{ parent.description }} Program</h3>
+
+{% if children %}
+<h4>Subcategories</h4>
+<table class="table table-striped" border="1">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Sort Order</th>
+            <th>Description</th>
+            <th>Importance</th>
+            <th>Active</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for child in children %}
+        <tr>
+            <td>{{ child.id }}</td>
+            <td>{{ child.sort_order }}</td>
+            <td><a href="{% url 'program_editor' child.id %}">{{ child.description }}</a></td>
+            <td>{{ child.importance.description }}</td>
+            <td>{% if child.active %}Active{% else %}Inactive{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<br>
+{% endif %}
+
+{% if editing %}
+<form action="{% url 'program_editor' parent.id %}" method="POST">
+    {% csrf_token %}
+    {% if program %}
+    <p class="program-date">
+        Date:
+        <input type="text" value="{{ program.timestamp|date:'l, F j, Y' }}" readonly>
+    </p>
+    {% endif %}
+    <p>
+        <textarea class="program-description" name="description" rows="20">{{ program.description|default:'' }}</textarea>
+    </p>
+    <p class="program-actions">
+        <button type="submit" name="action" value="save">Save</button>
+    </p>
+</form>
+{% else %}
+{% if programs %}
+<form method="get" class="program-date">
+    Date:
+    <select name="program" onchange="this.form.submit()">
+        {% for p in programs %}
+        <option value="{{ p.id }}"{% if program and p.id == program.id %} selected{% endif %}>{{ p.timestamp|date:'l, F j, Y' }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">View</button>
+</form>
+{% endif %}
+<p>
+    <textarea class="program-description" name="description" rows="20" readonly>{{ program.description|default:'' }}</textarea>
+</p>
+<div class="program-actions">
+    {% if program and is_latest %}
+    <form method="get">
+        <button type="submit" name="edit" value="1">Edit</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'program_editor' parent.id %}">
+        {% csrf_token %}
+        {% if program %}
+        <input type="hidden" name="program" value="{{ program.id }}">
+        {% endif %}
+        <button type="submit" name="action" value="clone">{% if program %}Clone{% else %}New{% endif %}</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

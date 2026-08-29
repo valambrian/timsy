@@ -6,6 +6,7 @@ from .place import Place
 from .parent import Parent, ParentModelAdmin
 from .daily_plan import DailyPlan, DailyPlanEntry
 from .blueprint import Blueprint, BlueprintEntry
+from .program import Program
 
 __all__ = [
     'Importance',
@@ -20,4 +21,5 @@ __all__ = [
     'DailyPlanEntry',
     'Blueprint',
     'BlueprintEntry',
+    'Program',
 ] 

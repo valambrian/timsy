@@ -9,6 +9,7 @@ from .views import (
     daily_plan_views,
     plan_vs_fact_views,
     plan_vs_fact_weekly_views,
+    program_views,
     request_views,
     simple_summary_views,
     time_entry_log_views
@@ -45,4 +46,6 @@ urlpatterns = [
     path('blueprints/<int:id>/edit/', blueprint_views.blueprint_edit_view, name='blueprint_edit'),
     path('parents/top/', activity_views.top_parents_list, name='top_parents_list'),
     path('activities/<slug:parent_id>/', activity_views.activity_editor, name='activity_editor'),
+    path('programs/parents/top/', program_views.program_parents_list, name='program_parents_list'),
+    path('programs/<slug:parent_id>/', program_views.program_editor, name='program_editor'),
 ]
