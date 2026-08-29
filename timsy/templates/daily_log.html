@@ -29,6 +29,7 @@
             <th>Parent</th>
             <th>Importance</th>
             <th>Urgency</th>
+            <th>Note</th>
         </tr>
 
         {% load timsy_extras %}
@@ -55,6 +56,8 @@
             <td>{{ record.activity.importance }}</td>
 
             <td>{{ record.activity.urgency }}</td>
+
+            <td>{{ record.note|default_if_none:"" }}</td>
 
         </tr>
         

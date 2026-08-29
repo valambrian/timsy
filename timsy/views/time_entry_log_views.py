@@ -48,6 +48,7 @@ def entry_log(request: HttpRequest) -> HttpResponse:
         hours, minutes = parse_duration_string(request.POST['duration0'])
         last_activity = ActivityRecord.get_latest()
         last_activity.update_duration(hours, minutes)
+        last_activity.update_note(request.POST.get('note0'))
         start = last_activity.start + timedelta(hours=hours, minutes=minutes)
 
         parents = Parent.objects.all()
@@ -71,10 +72,12 @@ def entry_log(request: HttpRequest) -> HttpResponse:
 
             duration = time(hour=hours, minute=minutes)
             place = places.filter(abbreviation=request.POST[f"place{i}"].upper()).first()
+            note = (request.POST.get(f"note{i}") or "").strip() or None
             record = ActivityRecord(activity=activity,
                                     place=place,
                                     start=start,
-                                    duration=duration)
+                                    duration=duration,
+                                    note=note)
             record.save()
             start += timedelta(hours=hours, minutes=minutes)
         return HttpResponseRedirect('/timsy/data/entry_log/')

@@ -8,22 +8,24 @@ from .place import Place
 class ActivityRecord(models.Model):
     """
     Represents a record of when an activity was performed.
-    
+
     This model stores information about individual activity sessions, including
-    when they occurred, how long they lasted, and where they took place.
-    Each record is linked to a specific activity and place.
-    
+    when they occurred, how long they lasted, where they took place, and an
+    optional note. Each record is linked to a specific activity and place.
+
     Attributes:
         activity (Activity): Foreign key to the activity performed
         place (Place): Foreign key to the place where activity occurred
         start (datetime): When the activity started (indexed for efficient querying)
         duration (time): How long the activity lasted
+        note (str): Optional free-text note for this session
     """
     activity = models.ForeignKey(Activity, on_delete=models.PROTECT)
     place = models.ForeignKey(Place, on_delete=models.PROTECT)
     start = models.DateTimeField(db_index=True)
     duration = models.TimeField()
-    
+    note = models.TextField(null=True, blank=True)
+
     def __str__(self):
         """Return a string representation of the activity record.
         
@@ -61,6 +63,31 @@ class ActivityRecord(models.Model):
         self.duration = time(hour, minute)
         self.save()
 
+    def update_note(self, note):
+        """Update the note of the activity record.
+
+        Empty strings are stored as NULL. The record is saved only if the
+        note value changed.
+
+        Args:
+            note (str or None): New note text, or empty/None to clear
+        """
+        if note:
+            note = note.strip() or None
+        else:
+            note = None
+
+        if self.note == note:
+            return
+
+        self.note = note
+        self.save()
+
+    def save(self, *args, **kwargs):
+        """Save the activity record, storing blank notes as NULL."""
+        if self.note is not None:
+            self.note = self.note.strip() or None
+        super().save(*args, **kwargs)
 
     def as_hash(self):
         """Convert activity record data to a dictionary format for serialization.
@@ -81,6 +108,7 @@ class ActivityRecord(models.Model):
                 - parent: Parent category description
                 - importance: Importance level description
                 - urgency: Urgency level description
+                - note: Optional session note (empty string if none)
         """
         return {
             "date": self.date_string(),
@@ -95,7 +123,8 @@ class ActivityRecord(models.Model):
             "description": self.activity.description,
             "parent": self.activity.parent.description,
             "importance": self.activity.importance.description,
-            "urgency": self.activity.urgency.description
+            "urgency": self.activity.urgency.description,
+            "note": self.note or ""
         }
 
     @classmethod
