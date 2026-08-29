@@ -1,0 +1,11 @@
+# Runtime dependencies for the Timsy Django project.
+# Python 3.12 / Django 5.1 / MariaDB (mysqlclient driver).
+
+# Direct dependencies
+Django==5.1
+mysqlclient==2.2.4
+
+# Transitive dependencies (installed with Django, pinned for reproducibility)
+asgiref==3.8.1
+sqlparse==0.5.1
+tzdata==2024.1

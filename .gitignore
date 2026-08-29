@@ -20,6 +20,11 @@ media/
 # Personal time-use data
 timsy/data/
 
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
 # IDE
 .idea/
 .vscode/
