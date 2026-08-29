@@ -4,7 +4,7 @@ Timsy is a Django-based time management and activity tracking system designed to
 
 ## Features
 
-- Activity tracking with importance and urgency levels
+- Activity tracking with importance and urgency levels, and optional notes per record
 - Location-based time tracking
 - Comprehensive reporting system:
   - Daily logs
@@ -12,7 +12,8 @@ Timsy is a Django-based time management and activity tracking system designed to
   - Monthly summaries
   - Plan-vs-fact comparisons (daily and weekly)
   - Custom date range reports
-- Daily plans, built from reusable blueprints
+- Daily plans, built from reusable blueprints, with active/inactive filtering
+- Programs: versioned, free-text planning docs per parent category
 - Parent-Child activity organization
 
 ## Project Structure
@@ -39,13 +40,14 @@ timsy/                    # Repo root
 
 ### Core Models
 - `Activity`: Individual tasks with importance and urgency levels
-- `ActivityRecord`: Records of when activities were performed
+- `ActivityRecord`: Records of when activities were performed, with an optional note
 - `Parent`: High-level categories for activities
 - `Importance`: Classification of activity importance
 - `Urgency`: Classification of activity urgency
 - `Place`: Different locations where activities can occur
-- `DailyPlan` / `DailyPlanEntry`: A plan of activities for a specific date
+- `DailyPlan` / `DailyPlanEntry`: A plan of activities for a specific date; plans can be marked active/inactive
 - `Blueprint` / `BlueprintEntry`: Reusable templates for building daily plans
+- `Program`: A versioned, free-text planning document for a parent category
 
 ## Setup and Installation
 
@@ -104,16 +106,21 @@ timsy/                    # Repo root
 - `GET /timsy/parents/top/`: Top-level parent list
 
 ### Daily Plans
-- `GET /timsy/data/plans/daily/`: Daily plan list
+- `GET /timsy/data/plans/daily/`: Daily plan list (active only by default; `?show=all` for all)
 - `GET/POST /timsy/data/plans/daily/create/`: Create a daily plan
 - `GET /timsy/data/plans/daily/<year>/<month>/<day>/`: View a daily plan
 - `GET/POST /timsy/data/plans/daily/<year>/<month>/<day>/edit/`: Edit a daily plan
+- `GET /timsy/data/plans/daily/<year>/<month>/<day>/toggle-active/`: Toggle a plan's active flag
 
 ### Blueprints
 - `GET /timsy/blueprints/`: Blueprint list
 - `GET /timsy/blueprints/<id>/`: Blueprint detail
 - `GET/POST /timsy/blueprints/<id>/edit/`: Edit a blueprint
 - `GET /timsy/api/blueprints/<blueprint_id>/entries/`: Blueprint entries (JSON)
+
+### Programs
+- `GET /timsy/programs/parents/top/`: Top-level parent list (Programs entry point)
+- `GET/POST /timsy/programs/<parent_id>/`: View, edit, or clone a parent's program
 
 ## Contributing
 
