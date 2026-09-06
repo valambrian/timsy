@@ -1,0 +1,89 @@
+<table border="1">
+    <tr>
+        <th>Pomodoro Timer</th>
+    </tr>
+    <tr>
+        <td>Remaining: <span id="remaining">25:00</span></td>
+    </tr>
+    <tr>
+        <td>Elapsed: <span id="elapsed">00:00</span></td>
+    </tr>
+    <tr>
+        <td>
+            <button type="button" id="start-button">Start</button>
+            <button type="button" id="pause-button">Pause</button>
+            <button type="button" id="reset-button">Reset</button>
+        </td>
+    </tr>
+</table>
+
+<script type="text/javascript">
+    const DURATION_SECONDS = 25 * 60;
+    let remainingSeconds = DURATION_SECONDS;
+    let timerId = null;
+
+    function formatTime(totalSeconds) {
+        let minutes = Math.floor(totalSeconds / 60);
+        let seconds = totalSeconds % 60;
+        if (minutes < 10) {
+            minutes = "0" + minutes.toString();
+        } else {
+            minutes = minutes.toString();
+        }
+        if (seconds < 10) {
+            seconds = "0" + seconds.toString();
+        } else {
+            seconds = seconds.toString();
+        }
+        return minutes + ":" + seconds;
+    }
+
+    function updateDisplay() {
+        document.getElementById("remaining").textContent = formatTime(remainingSeconds);
+        document.getElementById("elapsed").textContent = formatTime(DURATION_SECONDS - remainingSeconds);
+    }
+
+    function stopTimer() {
+        if (timerId !== null) {
+            clearInterval(timerId);
+            timerId = null;
+        }
+    }
+
+    function tick() {
+        if (remainingSeconds <= 0) {
+            return;
+        }
+        remainingSeconds = remainingSeconds - 1;
+        updateDisplay();
+        if (remainingSeconds === 0) {
+            stopTimer();
+            alert("Pomodoro complete");
+        }
+    }
+
+    function startTimer() {
+        if (timerId !== null) {
+            return;
+        }
+        if (remainingSeconds <= 0) {
+            return;
+        }
+        timerId = setInterval(tick, 1000);
+    }
+
+    function pauseTimer() {
+        stopTimer();
+    }
+
+    function resetTimer() {
+        stopTimer();
+        remainingSeconds = DURATION_SECONDS;
+        updateDisplay();
+    }
+
+    document.getElementById("start-button").onclick = startTimer;
+    document.getElementById("pause-button").onclick = pauseTimer;
+    document.getElementById("reset-button").onclick = resetTimer;
+    updateDisplay();
+</script>

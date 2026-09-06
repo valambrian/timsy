@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timezone as dt_timezone
+from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase
@@ -886,3 +886,266 @@ class WeeklyPlanTests(TestCase):
         with patch('timsy.views.weekly_plan_views.local_today', return_value=self.week_start):
             latest = self.client.get(reverse('weekly_plan_latest'))
         self.assertRedirects(latest, self.edit_url)
+
+
+class DailyPlanTodoSidebarTests(TestCase):
+    """Day-horizon todos appear beside a daily plan; todo POSTs do not wipe entries."""
+
+    def setUp(self):
+        self.importance = Importance.objects.create(
+            sort_order=1, abbreviation='A', description='High'
+        )
+        self.urgency = Urgency.objects.create(
+            sort_order=1, abbreviation='A', description='Soon'
+        )
+        self.parent = Parent.objects.create(
+            id='WO',
+            sort_order=1,
+            description='Work',
+            importance=self.importance,
+            state=Parent.State.ACTIVE,
+        )
+        self.place = Place.objects.create(
+            abbreviation='H', sort_order=1, description='Home'
+        )
+        self.activity = Activity.objects.create(
+            sort_order=1,
+            abbreviation='wo',
+            description='Work',
+            parent=self.parent,
+            importance=self.importance,
+            urgency=self.urgency,
+        )
+        self.plan_date = date(2026, 9, 3)
+        self.plan = DailyPlan.objects.create(date=self.plan_date)
+        self.entry = DailyPlanEntry.objects.create(
+            plan=self.plan,
+            activity=self.activity,
+            place=self.place,
+            start=time(8, 0),
+            duration=time(1, 0),
+        )
+        self.todo = ToDoItem.objects.create(
+            parent=self.parent,
+            description='Ship the sidebar',
+            activity=self.activity,
+            horizon=ToDoItem.Horizon.DAY,
+            horizon_date=self.plan_date,
+            status=ToDoItem.Status.OPEN,
+        )
+        self.view_url = reverse(
+            'daily_plan_view',
+            args=[self.plan_date.year, self.plan_date.month, self.plan_date.day],
+        )
+        self.edit_url = reverse(
+            'daily_plan_edit',
+            args=[self.plan_date.year, self.plan_date.month, self.plan_date.day],
+        )
+
+    def test_view_shows_day_horizon_todo_not_week(self):
+        ToDoItem.objects.create(
+            parent=self.parent,
+            description='Week leftover',
+            horizon=ToDoItem.Horizon.WEEK,
+            horizon_date=self.plan_date,
+            status=ToDoItem.Status.OPEN,
+        )
+        response = self.client.get(self.view_url)
+        self.assertContains(response, 'Ship the sidebar')
+        self.assertNotContains(response, 'Week leftover')
+        self.assertContains(response, 'Move to:')
+
+    def test_view_shows_done_items(self):
+        self.todo.status = ToDoItem.Status.DONE
+        self.todo.save(update_fields=['status'])
+        response = self.client.get(self.view_url)
+        self.assertContains(response, 'Ship the sidebar')
+        self.assertContains(response, 'checked')
+
+    def test_view_complete_does_not_touch_plan_entries(self):
+        response = self.client.post(
+            self.view_url,
+            {
+                'action': 'set_status',
+                'item_id': str(self.todo.id),
+                'done': '1',
+                'next': self.view_url,
+            },
+        )
+        self.assertRedirects(response, self.view_url)
+        self.todo.refresh_from_db()
+        self.assertEqual(self.todo.status, ToDoItem.Status.DONE)
+        self.assertEqual(DailyPlanEntry.objects.filter(plan=self.plan).count(), 1)
+
+    def test_edit_complete_does_not_wipe_plan_entries(self):
+        response = self.client.post(
+            self.edit_url,
+            {
+                'action': 'set_status',
+                'item_id': str(self.todo.id),
+                'done': '1',
+                'next': self.edit_url,
+            },
+        )
+        self.assertRedirects(response, self.edit_url)
+        self.todo.refresh_from_db()
+        self.assertEqual(self.todo.status, ToDoItem.Status.DONE)
+        self.assertEqual(DailyPlanEntry.objects.filter(plan=self.plan).count(), 1)
+        self.entry.refresh_from_db()
+        self.assertEqual(self.entry.activity, self.activity)
+
+    def test_move_sends_to_next_day_only(self):
+        tomorrow = self.plan_date + timedelta(days=1)
+        response = self.client.get(self.view_url)
+        self.assertContains(
+            response, 'day|%s' % tomorrow.isoformat()
+        )
+        self.assertNotContains(response, 'week|')
+        self.client.post(
+            self.view_url,
+            {
+                'action': 'move',
+                'item_id': str(self.todo.id),
+                'move_target': 'day|%s' % tomorrow.isoformat(),
+                'next': self.view_url,
+            },
+        )
+        self.todo.refresh_from_db()
+        self.assertEqual(self.todo.horizon, ToDoItem.Horizon.DAY)
+        self.assertEqual(self.todo.horizon_date, tomorrow)
+        follow = self.client.get(self.view_url)
+        self.assertContains(follow, 'Ship the sidebar')
+        tomorrow_plan = DailyPlan.objects.create(date=tomorrow)
+        tomorrow_url = reverse(
+            'daily_plan_view',
+            args=[tomorrow.year, tomorrow.month, tomorrow.day],
+        )
+        tomorrow_page = self.client.get(tomorrow_url)
+        self.assertContains(tomorrow_page, 'Ship the sidebar')
+
+    def test_view_shows_tomorrow_day_horizon_todos(self):
+        tomorrow = self.plan_date + timedelta(days=1)
+        ToDoItem.objects.create(
+            parent=self.parent,
+            description='Tomorrow item',
+            horizon=ToDoItem.Horizon.DAY,
+            horizon_date=tomorrow,
+            status=ToDoItem.Status.OPEN,
+        )
+        response = self.client.get(self.view_url)
+        self.assertContains(response, 'Tomorrow item')
+        self.assertContains(response, tomorrow.strftime('%a %b %d, %Y'))
+
+
+class DailyPlanPomodoroTests(TestCase):
+    """Pomodoro timer is on today's daily plan view, not on other days."""
+
+    def _plan_url(self, plan_date):
+        DailyPlan.objects.create(date=plan_date)
+        return reverse(
+            'daily_plan_view',
+            args=[plan_date.year, plan_date.month, plan_date.day],
+        )
+
+    def test_today_view_shows_pomodoro_after_todos(self):
+        response = self.client.get(self._plan_url(local_today()))
+        self.assertContains(response, '<th>Pomodoro Timer</th>')
+        self.assertContains(response, 'id="start-button"')
+        self.assertContains(response, 'id="pause-button"')
+        self.assertContains(response, 'id="reset-button"')
+        content = response.content.decode()
+        self.assertLess(content.find('data-todo-column'), content.find('Pomodoro Timer'))
+
+    def test_other_day_view_omits_pomodoro(self):
+        response = self.client.get(self._plan_url(local_today() - timedelta(days=1)))
+        self.assertNotContains(response, 'Pomodoro Timer')
+        self.assertNotContains(response, 'id="start-button"')
+
+    def test_home_page_has_no_pomodoro_link(self):
+        response = self.client.get(reverse('index'))
+        self.assertNotContains(response, 'Pomodoro Timer')
+
+
+class DailyPlanCurrentRowTests(TestCase):
+    """Today's plan rows expose start/duration for current-row highlighting."""
+
+    def setUp(self):
+        self.importance = Importance.objects.create(
+            sort_order=1, abbreviation='A', description='High'
+        )
+        self.urgency = Urgency.objects.create(
+            sort_order=1, abbreviation='A', description='Soon'
+        )
+        self.parent = Parent.objects.create(
+            id='WO',
+            sort_order=1,
+            description='Work',
+            importance=self.importance,
+            state=Parent.State.ACTIVE,
+        )
+        self.place = Place.objects.create(
+            abbreviation='H', sort_order=1, description='Home'
+        )
+        self.activity = Activity.objects.create(
+            sort_order=1,
+            abbreviation='wo',
+            description='Work',
+            parent=self.parent,
+            importance=self.importance,
+            urgency=self.urgency,
+        )
+
+    def _view_with_entry(self, plan_date):
+        plan = DailyPlan.objects.create(date=plan_date)
+        DailyPlanEntry.objects.create(
+            plan=plan,
+            activity=self.activity,
+            place=self.place,
+            start=time(8, 0),
+            duration=time(1, 0),
+        )
+        return self.client.get(
+            reverse(
+                'daily_plan_view',
+                args=[plan_date.year, plan_date.month, plan_date.day],
+            )
+        )
+
+    def test_today_view_has_start_and_duration_data_attrs(self):
+        response = self._view_with_entry(local_today())
+        self.assertContains(response, 'data-start="08:00"')
+        self.assertContains(response, 'data-duration="01:00"')
+        self.assertContains(response, 'highlightCurrentPlanRow')
+
+    def test_other_day_view_omits_start_and_duration_data_attrs(self):
+        response = self._view_with_entry(local_today() - timedelta(days=1))
+        self.assertNotContains(response, 'data-start=')
+        self.assertNotContains(response, 'data-duration=')
+        self.assertNotContains(response, 'highlightCurrentPlanRow')
+
+
+class DailyPlanListTodayTests(TestCase):
+    """TODAY on the plan list follows the local calendar date, not UTC."""
+
+    def test_today_label_matches_local_date_not_utc_tomorrow(self):
+        today = local_today()
+        tomorrow = today + timedelta(days=1)
+        yesterday = today - timedelta(days=1)
+        DailyPlan.objects.create(date=yesterday)
+        DailyPlan.objects.create(date=today)
+        DailyPlan.objects.create(date=tomorrow)
+
+        response = self.client.get(reverse('daily_plan_list'))
+        today_label = 'TODAY - %s%d, %d' % (
+            today.strftime('%A, %B '),
+            today.day,
+            today.year,
+        )
+        tomorrow_label = 'TODAY - %s%d, %d' % (
+            tomorrow.strftime('%A, %B '),
+            tomorrow.day,
+            tomorrow.year,
+        )
+        self.assertContains(response, today_label)
+        self.assertNotContains(response, tomorrow_label)
+        self.assertEqual(response.context['today'], today)

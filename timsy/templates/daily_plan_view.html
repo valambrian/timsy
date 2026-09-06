@@ -8,7 +8,9 @@
         <h3>Daily Plan for {{ plan.date|date:"F j, Y" }}</h3>
     </div>
 
-    <div>
+    <table>
+        <tr>
+            <td valign="top">
         {% if plan.get_entries %}
             <table border="1">
                 <tr>
@@ -22,7 +24,7 @@
                     <th>Urgency</th>
                 </tr>
                 {% for entry in entries %}
-                    <tr>
+                    <tr{% if plan.date == today %} data-start="{{ entry.start|time_string }}" data-duration="{{ entry.duration|time:'H:i' }}"{% endif %}>
                         <td>{{ entry.start|time_string }}</td>
                         <td>{{ entry.duration|time:"H:i" }}</td>
                         <td>{{ entry.place.abbreviation }}</td>
@@ -41,5 +43,49 @@
         {% else %}
             <p>No entries in this plan.</p>
         {% endif %}
-    </div>
+            </td>
+            <td valign="top">
+                {% include "daily_plan_todos.html" %}
+            </td>
+            {% if plan.date == today %}
+            <td valign="top">
+                {% include "pomodoro_timer.html" %}
+            </td>
+            {% endif %}
+        </tr>
+    </table>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% if plan.date == today %}
+<script type="text/javascript">
+    function parseHmToSeconds(value) {
+        var parts = value.split(":");
+        var hours = parseInt(parts[0], 10);
+        var minutes = parseInt(parts[1], 10);
+        return hours * 3600 + minutes * 60;
+    }
+
+    function highlightCurrentPlanRow() {
+        var now = new Date();
+        var nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        var rows = document.querySelectorAll("tr[data-start][data-duration]");
+        var i;
+        for (i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var start = parseHmToSeconds(row.getAttribute("data-start"));
+            var end = start + parseHmToSeconds(row.getAttribute("data-duration"));
+            if (nowSeconds >= start && nowSeconds < end) {
+                row.setAttribute("bgcolor", "#ffff99");
+            } else {
+                row.removeAttribute("bgcolor");
+            }
+        }
+    }
+
+    highlightCurrentPlanRow();
+    setInterval(highlightCurrentPlanRow, 60000);
+</script>
+{% endif %}
 {% endblock %} 
