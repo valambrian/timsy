@@ -19,6 +19,7 @@ class Activity(models.Model):
         parent (Parent): Foreign key to the parent category
         importance (Importance): Foreign key to the importance level
         urgency (Urgency): Foreign key to the urgency level
+        is_placeholder (bool): Whether this row is a time-bucket slot, not a real activity
     """
     sort_order = models.IntegerField(null=True, blank=True)
     abbreviation = models.CharField(max_length=10, blank=True, db_index=True)
@@ -26,6 +27,7 @@ class Activity(models.Model):
     parent = models.ForeignKey(Parent, on_delete=models.PROTECT)
     importance = models.ForeignKey(Importance, on_delete=models.PROTECT)
     urgency = models.ForeignKey(Urgency, on_delete=models.PROTECT)
+    is_placeholder = models.BooleanField(default=False)
 
     def __str__(self):
         """Return the activity's description as its string representation.
