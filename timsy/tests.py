@@ -3,7 +3,9 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
+from timsy.models import ToDoItem
 from timsy.reports.utils import local_today
+from timsy.views.todo_views import _is_past
 
 
 class LocalTodayTests(SimpleTestCase):
@@ -20,3 +22,23 @@ class LocalTodayTests(SimpleTestCase):
         frozen = datetime(2026, 9, 6, 4, 30, tzinfo=dt_timezone.utc)
         with patch('django.utils.timezone.now', return_value=frozen):
             self.assertEqual(local_today(), date(2026, 9, 6))
+
+
+class TodoDailyPastColumnTests(SimpleTestCase):
+    """Day columns stay current until Eastern midnight, not UTC midnight."""
+
+    def test_evening_eastern_does_not_grey_out_today(self):
+        # 10 PM EDT on 2026-09-05 is 02:00 UTC on 2026-09-06.
+        frozen = datetime(2026, 9, 6, 2, 0, tzinfo=dt_timezone.utc)
+        with patch('django.utils.timezone.now', return_value=frozen):
+            self.assertFalse(
+                _is_past(ToDoItem.Horizon.DAY, date(2026, 9, 5), local_today())
+            )
+
+    def test_after_eastern_midnight_greys_out_yesterday(self):
+        # 12:30 AM EDT on 2026-09-06 is 04:30 UTC on 2026-09-06.
+        frozen = datetime(2026, 9, 6, 4, 30, tzinfo=dt_timezone.utc)
+        with patch('django.utils.timezone.now', return_value=frozen):
+            self.assertTrue(
+                _is_past(ToDoItem.Horizon.DAY, date(2026, 9, 5), local_today())
+            )

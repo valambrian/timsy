@@ -7,6 +7,7 @@ from .parent import Parent, ParentModelAdmin
 from .daily_plan import DailyPlan, DailyPlanEntry
 from .blueprint import Blueprint, BlueprintEntry
 from .program import Program
+from .todo_item import ToDoItem
 
 __all__ = [
     'Importance',
@@ -22,4 +23,5 @@ __all__ = [
     'Blueprint',
     'BlueprintEntry',
     'Program',
+    'ToDoItem',
 ] 

@@ -1,0 +1,120 @@
+{% for item in column.items %}
+<div data-todo-item data-todo-id="{{ item.id }}">
+    <form id="todo-status-{{ item.id }}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="set_status">
+        <input type="hidden" name="item_id" value="{{ item.id }}">
+        <input type="hidden" name="next" value="{{ next_path }}">
+    </form>
+    <table>
+        <tr>
+            <td valign="middle"><span data-todo-handle data-todo-id="{{ item.id }}" draggable="true">::</span></td>
+            <td valign="middle">
+                <input form="todo-status-{{ item.id }}" type="checkbox" name="done" value="1"{% if item.status == 'done' %} checked{% endif %} onchange="this.form.submit()">
+            </td>
+            <td valign="middle">{{ item.description }}</td>
+            {% if edit_id != item.id %}
+            <td valign="middle">&nbsp;</td>
+            <td valign="middle">
+                <details>
+                    <summary>Edit</summary>
+                    <table>
+                        <tr>
+                            <td>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="move">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="hidden" name="next" value="{{ next_path }}">
+                                    Move to:
+                                    <select name="move_target">
+                                        <option value="">(choose)</option>
+                                        {% with dest_list=move_destinations|default:columns %}
+                                        {% for dest in dest_list %}
+                                        <option value="{{ dest.horizon }}|{{ dest.horizon_date_iso }}">{{ dest.title }}</option>
+                                        {% endfor %}
+                                        {% endwith %}
+                                    </select>
+                                    <button type="submit">Move</button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="get" action="{{ request.path }}">
+                                    {% if request.GET.month %}
+                                    <input type="hidden" name="month" value="{{ request.GET.month }}">
+                                    {% endif %}
+                                    <input type="hidden" name="edit" value="{{ item.id }}">
+                                    <button type="submit">Edit</button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="hidden" name="next" value="{{ next_path }}">
+                                    <button type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </table>
+                </details>
+            </td>
+            {% endif %}
+        </tr>
+    </table>
+    {% if edit_id == item.id %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="item_id" value="{{ item.id }}">
+        <input type="hidden" name="next" value="{{ cancel_path }}">
+        <p>
+            Parent:
+            <select name="parent" data-activity-filter>
+                {% for parent_id, parent_label in parent_list %}
+                <option value="{{ parent_id }}"{% if item.parent_id == parent_id %} selected{% endif %}>{{ parent_label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            Description:
+            <input type="text" name="description" maxlength="200" value="{{ item.description }}">
+        </p>
+        <p>
+            Activity:
+            <select name="activity">
+                <option value="">(none)</option>
+                {% for activity_id, activity_label in edit_activity_list %}
+                <option value="{{ activity_id }}"{% if item.activity_id == activity_id %} selected{% endif %}>{{ activity_label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            Note:<br>
+            <textarea name="note" rows="2" cols="24">{{ item.note }}</textarea>
+        </p>
+        <p>
+            <button type="submit">Save</button>
+            <a href="{{ cancel_path }}">Cancel</a>
+        </p>
+    </form>
+    {% else %}
+    {% if item.activity or item.note %}
+    <p>
+        {% if item.activity %}{{ item.activity }}{% endif %}
+        {% if item.note %}<br>{{ item.note }}{% endif %}
+    </p>
+    {% endif %}
+    {% endif %}
+    <hr>
+</div>
+{% empty %}
+<p>(none)</p>
+{% endfor %}
+
+{% if not column.is_past %}
+<p>
+    <button type="button" data-todo-add data-horizon="{{ column.horizon }}" data-horizon-date="{{ column.horizon_date_iso }}" data-title="{{ column.title }}">Add</button>
+</p>
+{% endif %}

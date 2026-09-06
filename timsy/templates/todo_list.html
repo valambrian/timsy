@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h3>{{ title }} (
+  {% if prev_url %}
+    <a href="{{ prev_url }}">Previous</a>
+  {% endif %}
+  {% if prev_url and next_url %}, {% endif %}
+  {% if next_url %}
+    <a href="{{ next_url }}">Next</a>
+  {% endif %}
+)</h3>
+
+{% if extra_nav %}
+<p>
+  {% for nav in extra_nav %}
+    {% if not forloop.first %} | {% endif %}
+    <a href="{{ nav.url }}">{{ nav.label }}</a>
+  {% endfor %}
+</p>
+{% endif %}
+
+<form id="todo-move-form" method="post" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="move">
+    <input type="hidden" name="item_id" value="">
+    <input type="hidden" name="horizon" value="">
+    <input type="hidden" name="horizon_date" value="">
+    <input type="hidden" name="before_id" value="">
+    <input type="hidden" name="next" value="{{ next_path }}">
+</form>
+
+<table border="1">
+    <tr>
+        {% for column in columns %}
+        <th>
+            <a href="{{ column.header_url }}">{{ column.title }}</a>
+        </th>
+        {% endfor %}
+    </tr>
+    <tr>
+        {% for column in columns %}
+        <td valign="top"{% if column.bgcolor %} bgcolor="{{ column.bgcolor }}"{% endif %} data-todo-column data-horizon="{{ column.horizon }}" data-horizon-date="{{ column.horizon_date_iso }}">
+            {% include "todo_column.html" %}
+        </td>
+        {% endfor %}
+    </tr>
+</table>
+
+<dialog id="todo-add-dialog">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <input type="hidden" name="horizon" value="">
+        <input type="hidden" name="horizon_date" value="">
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <h4 id="todo-add-heading">Add todo</h4>
+        <p>
+            Parent:
+            <select name="parent" required>
+                <option value="">(choose)</option>
+                {% for parent_id, parent_label in parent_list %}
+                <option value="{{ parent_id }}">{{ parent_label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            Description:
+            <input type="text" name="description" maxlength="200" required>
+        </p>
+        <p>
+            Activity:
+            <select name="activity">
+                <option value="">(none)</option>
+                {% for activity_id, activity_label in activity_list %}
+                <option value="{{ activity_id }}">{{ activity_label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            Note:<br>
+            <textarea name="note" rows="3" cols="40"></textarea>
+        </p>
+        <p>
+            <button type="submit">Save</button>
+            <button type="button" id="todo-add-cancel">Cancel</button>
+        </p>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% include "todo_scripts.html" %}
+{% endblock %}

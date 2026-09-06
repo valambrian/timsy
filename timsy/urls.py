@@ -12,7 +12,8 @@ from .views import (
     program_views,
     request_views,
     simple_summary_views,
-    time_entry_log_views
+    time_entry_log_views,
+    todo_views,
 )
 
 urlpatterns = [
@@ -48,4 +49,12 @@ urlpatterns = [
     path('activities/<slug:parent_id>/', activity_views.activity_editor, name='activity_editor'),
     path('programs/parents/top/', program_views.program_parents_list, name='program_parents_list'),
     path('programs/<slug:parent_id>/', program_views.program_editor, name='program_editor'),
+    path('todos/today/', todo_views.todo_today, name='todo_today'),
+    path('todos/this-week/', todo_views.todo_this_week, name='todo_this_week'),
+    path('todos/this-month/', todo_views.todo_this_month, name='todo_this_month'),
+    path('todos/this-year/', todo_views.todo_this_year, name='todo_this_year'),
+    path('todos/daily/<int:year>/<int:month>/<int:day>/', todo_views.todo_daily, name='todo_daily'),
+    path('todos/weekly/<int:year>/<int:month>/<int:day>/', todo_views.todo_weekly, name='todo_weekly'),
+    path('todos/monthly/<int:year>/<int:month>/', todo_views.todo_monthly, name='todo_monthly'),
+    path('todos/yearly/<int:year>/', todo_views.todo_yearly, name='todo_yearly'),
 ]
