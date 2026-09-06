@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Management{% endblock %}
+
+{% block content %}
+<h3>Activity Management - Top Level Categories</h3>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<form action="{% url 'top_parents_list' %}" method="POST">
+    {% csrf_token %}
+    <table class="table table-striped" border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Sort Order</th>
+                <th>Description</th>
+                <th>Importance</th>
+                <th>State</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% include 'parent_form_rows.html' with parent_rows=parents %}
+        </tbody>
+    </table>
+    <div style="margin-top: 20px;">
+        <button type="submit">Save</button>
+    </div>
+</form>
+{% endblock %}

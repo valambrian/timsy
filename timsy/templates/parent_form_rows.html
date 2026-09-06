@@ -1,0 +1,89 @@
+{% load timsy_extras %}
+{% for parent_row in parent_rows %}
+<tr>
+    <td>
+        <a href="{% url 'activity_editor' parent_row.id %}">{{ parent_row.id }}</a>
+        <input type="hidden" name="existing_id{{ forloop.counter0 }}" value="{{ parent_row.id }}">
+        <input type="hidden" name="parent_id{{ forloop.counter0 }}" value="{{ parent_row.id }}">
+        {% if errors and forloop.counter0 in errors %}
+            <div class="text-danger small">
+                {% for error in errors|get_item:forloop.counter0 %}
+                    {{ error }}<br>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </td>
+    <td>
+        <input type="number" name="sort_order{{ forloop.counter0 }}"
+               value="{% if preserved_data and forloop.counter0 in preserved_data %}{{ preserved_data|get_item:forloop.counter0|get_item:'sort_order' }}{% else %}{{ parent_row.sort_order }}{% endif %}">
+    </td>
+    <td>
+        <input type="text" name="description{{ forloop.counter0 }}" maxlength="200"
+               value="{% if preserved_data and forloop.counter0 in preserved_data %}{{ preserved_data|get_item:forloop.counter0|get_item:'description' }}{% else %}{{ parent_row.description }}{% endif %}">
+    </td>
+    <td>
+        <select name="importance{{ forloop.counter0 }}">
+            <option value="">---------</option>
+            {% for importance_id, importance_desc in importance_list %}
+            <option value="{{ importance_id }}"
+                    {% if preserved_data and forloop.counter0 in preserved_data %}
+                        {% if importance_id == preserved_data|get_item:forloop.counter0|get_item:'importance'|add:0 %}selected{% endif %}
+                    {% elif importance_id == parent_row.importance.id %}selected{% endif %}>{{ importance_desc }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td>
+        <select name="state{{ forloop.counter0 }}">
+            {% for value, label in parent_state_choices %}
+            <option value="{{ value }}"
+                    {% if preserved_data and forloop.counter0 in preserved_data %}
+                        {% if value == preserved_data|get_item:forloop.counter0|get_item:'state' %}selected{% endif %}
+                    {% elif value == parent_row.state %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </td>
+</tr>
+{% endfor %}
+{% with row_index=parent_rows|length %}
+<tr>
+    <td>
+        <input type="hidden" name="existing_id{{ row_index }}" value="">
+        <input type="text" name="parent_id{{ row_index }}" maxlength="50"
+               value="{% if preserved_data and row_index in preserved_data %}{{ preserved_data|get_item:row_index|get_item:'parent_id' }}{% endif %}">
+        {% if errors and row_index in errors %}
+            <div class="text-danger small">
+                {% for error in errors|get_item:row_index %}
+                    {{ error }}<br>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </td>
+    <td>
+        <input type="number" name="sort_order{{ row_index }}"
+               value="{% if preserved_data and row_index in preserved_data %}{{ preserved_data|get_item:row_index|get_item:'sort_order' }}{% endif %}">
+    </td>
+    <td>
+        <input type="text" name="description{{ row_index }}" maxlength="200"
+               value="{% if preserved_data and row_index in preserved_data %}{{ preserved_data|get_item:row_index|get_item:'description' }}{% endif %}">
+    </td>
+    <td>
+        <select name="importance{{ row_index }}">
+            <option value="">---------</option>
+            {% for importance_id, importance_desc in importance_list %}
+            <option value="{{ importance_id }}"
+                    {% if preserved_data and row_index in preserved_data and importance_id == preserved_data|get_item:row_index|get_item:'importance'|add:0 %}selected{% endif %}>{{ importance_desc }}</option>
+            {% endfor %}
+        </select>
+    </td>
+    <td>
+        <select name="state{{ row_index }}">
+            {% for value, label in parent_state_choices %}
+            <option value="{{ value }}"
+                    {% if preserved_data and row_index in preserved_data %}
+                        {% if value == preserved_data|get_item:row_index|get_item:'state' %}selected{% endif %}
+                    {% elif value == 'active' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </td>
+</tr>
+{% endwith %}

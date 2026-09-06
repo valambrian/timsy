@@ -398,3 +398,165 @@ class DailyPlanBlueprintPanelTests(TestCase):
         self.assertNotContains(response, 'Unscheduled template')
         self.assertNotContains(response, 'Other Thursday template')
         self.assertNotContains(response, 'Inactive Thursday template')
+
+
+def _parent_row(index, parent_id='', existing_id='', sort_order='',
+                description='', importance='', state=''):
+    """Build POST fields for one parent editor row."""
+    return {
+        'parent_id%d' % index: parent_id,
+        'existing_id%d' % index: existing_id,
+        'sort_order%d' % index: sort_order,
+        'description%d' % index: description,
+        'importance%d' % index: str(importance) if importance != '' else '',
+        'state%d' % index: state,
+    }
+
+
+class ParentEditorTests(TestCase):
+    """Create and update parents on the Activity hierarchy pages."""
+
+    def setUp(self):
+        self.importance = Importance.objects.create(
+            sort_order=1, abbreviation='A', description='High'
+        )
+        self.other_importance = Importance.objects.create(
+            sort_order=2, abbreviation='B', description='Low'
+        )
+        self.parent = Parent.objects.create(
+            id='RT',
+            sort_order=1,
+            description='Routine',
+            importance=self.importance,
+            state=Parent.State.ACTIVE,
+        )
+        self.top_url = reverse('top_parents_list')
+        self.editor_url = reverse('activity_editor', args=['RT'])
+        self.child_save_url = reverse('save_child_parents', args=['RT'])
+
+    def test_create_top_level_parent(self):
+        response = self.client.post(self.top_url, {
+            **_parent_row(
+                0, parent_id='WO', sort_order='2', description='Work',
+                importance=self.importance.id, state='active',
+            ),
+        })
+        self.assertRedirects(response, self.top_url)
+        created = Parent.objects.get(id='WO')
+        self.assertEqual(created.description, 'Work')
+        self.assertEqual(created.sort_order, 2)
+        self.assertEqual(created.importance, self.importance)
+        self.assertEqual(created.state, Parent.State.ACTIVE)
+
+    def test_update_top_level_parent(self):
+        response = self.client.post(self.top_url, {
+            **_parent_row(
+                0, parent_id='RT', existing_id='RT', sort_order='5',
+                description='Updated routine', importance=self.other_importance.id,
+                state='paused',
+            ),
+            **_parent_row(1),
+        })
+        self.assertRedirects(response, self.top_url)
+        self.parent.refresh_from_db()
+        self.assertEqual(self.parent.description, 'Updated routine')
+        self.assertEqual(self.parent.sort_order, 5)
+        self.assertEqual(self.parent.importance, self.other_importance)
+        self.assertEqual(self.parent.state, Parent.State.PAUSED)
+
+    def test_create_child_parent(self):
+        response = self.client.post(self.child_save_url, {
+            **_parent_row(
+                0, parent_id='RT-AB', sort_order='1', description='Sub',
+                importance=self.importance.id, state='active',
+            ),
+        })
+        self.assertRedirects(response, self.editor_url)
+        created = Parent.objects.get(id='RT-AB')
+        self.assertEqual(created.description, 'Sub')
+        self.assertEqual(created.sort_order, 1)
+
+    def test_reject_wrong_shape_top_level_id(self):
+        response = self.client.post(self.top_url, {
+            **_parent_row(
+                0, parent_id='TOOLONG', description='Bad',
+                importance=self.importance.id, state='active',
+            ),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'ID must be exactly 2 characters')
+        self.assertFalse(Parent.objects.filter(id='TOOLONG').exists())
+
+    def test_reject_wrong_shape_child_ids(self):
+        for bad_id in ('RT', 'XX-AB'):
+            response = self.client.post(self.child_save_url, {
+                **_parent_row(
+                    0, parent_id=bad_id, description='Bad',
+                    importance=self.importance.id, state='active',
+                ),
+            })
+            self.assertEqual(response.status_code, 200, bad_id)
+            self.assertContains(response, 'ID must be RT- followed by 2 characters')
+        self.assertFalse(Parent.objects.filter(id='XX-AB').exists())
+        self.parent.refresh_from_db()
+        self.assertEqual(self.parent.description, 'Routine')
+        self.assertEqual(Parent.objects.count(), 1)
+
+    def test_reject_duplicate_id(self):
+        response = self.client.post(self.top_url, {
+            **_parent_row(
+                0, parent_id='RT', existing_id='RT', sort_order='1',
+                description='Routine', importance=self.importance.id,
+                state='active',
+            ),
+            **_parent_row(
+                1, parent_id='RT', description='Copy',
+                importance=self.importance.id, state='active',
+            ),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already exists')
+        self.assertEqual(Parent.objects.filter(id='RT').count(), 1)
+
+    def test_skip_empty_rows(self):
+        response = self.client.post(self.top_url, {
+            **_parent_row(
+                0, parent_id='RT', existing_id='RT', sort_order='1',
+                description='Routine', importance=self.importance.id,
+                state='active',
+            ),
+            **_parent_row(1),
+        })
+        self.assertRedirects(response, self.top_url)
+        self.assertEqual(Parent.objects.count(), 1)
+
+    def test_subcategories_form_when_no_children(self):
+        response = self.client.get(self.editor_url)
+        self.assertContains(response, 'Subcategories')
+        self.assertContains(response, 'name="parent_id0"')
+        self.assertContains(response, 'action="%s"' % self.child_save_url)
+
+    def test_save_child_parents_get_redirects_to_editor(self):
+        response = self.client.get(self.child_save_url)
+        self.assertRedirects(response, self.editor_url)
+
+    def test_valid_row_saves_when_another_row_fails(self):
+        response = self.client.post(self.top_url, {
+            **_parent_row(
+                0, parent_id='RT', existing_id='RT', sort_order='1',
+                description='Routine', importance=self.importance.id,
+                state='active',
+            ),
+            **_parent_row(
+                1, parent_id='WO', sort_order='2', description='Work',
+                importance=self.importance.id, state='active',
+            ),
+            **_parent_row(
+                2, parent_id='TOOLONG', description='Bad',
+                importance=self.importance.id, state='active',
+            ),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Parent.objects.filter(id='WO', description='Work').exists())
+        self.assertFalse(Parent.objects.filter(id='TOOLONG').exists())
+        self.assertContains(response, 'ID must be exactly 2 characters')

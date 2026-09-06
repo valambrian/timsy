@@ -24,21 +24,26 @@
     }
     #activities-table th:nth-child(4),
     #activities-table td:nth-child(4) {
-        width: 40%; /* Description */
+        width: 32%; /* Description */
     }
     #activities-table th:nth-child(5),
     #activities-table td:nth-child(5) {
-        width: 15%; /* Parent */
+        width: 8%; /* Placeholder */
+        text-align: center;
     }
     #activities-table th:nth-child(6),
     #activities-table td:nth-child(6) {
-        width: 12%; /* Importance */
+        width: 15%; /* Parent */
     }
     #activities-table th:nth-child(7),
     #activities-table td:nth-child(7) {
+        width: 12%; /* Importance */
+    }
+    #activities-table th:nth-child(8),
+    #activities-table td:nth-child(8) {
         width: 12%; /* Urgency */
     }
-    #activities-table input,
+    #activities-table input:not([type="checkbox"]),
     #activities-table select {
         width: 100%;
         box-sizing: border-box;
@@ -48,6 +53,29 @@
 
 {% block header %}
 <h3>{{ parent.description }} Activities</h3>
+
+<h4>Subcategories</h4>
+<form action="{% url 'save_child_parents' parent.id %}" method="POST">
+    {% csrf_token %}
+    <table class="table table-striped" border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Sort Order</th>
+                <th>Description</th>
+                <th>Importance</th>
+                <th>State</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% include 'parent_form_rows.html' with parent_rows=children errors=parent_errors preserved_data=parent_preserved_data %}
+        </tbody>
+    </table>
+    <div style="margin-top: 20px;">
+        <button type="submit">Save</button>
+    </div>
+</form>
+<br>
 {% endblock %}
 
 {% block form_content %}
@@ -56,34 +84,6 @@
     {% for message in messages %}
         <div class="alert alert-{{ message.tags }}">{{ message }}</div>
     {% endfor %}
-{% endif %}
-
-<!-- Direct Children Section (conditionally displayed) -->
-{% if children %}
-<h4>Subcategories</h4>
-<table class="table table-striped" border="1">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Sort Order</th>
-            <th>Description</th>
-            <th>Importance</th>
-            <th>Active</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for child in children %}
-        <tr>
-            <td>{{ child.id }}</td>
-            <td>{{ child.sort_order }}</td>
-            <td><a href="{% url 'activity_editor' child.id %}">{{ child.description }}</a></td>
-            <td>{{ child.importance.description }}</td>
-            <td>{% if child.active %}Active{% else %}Inactive{% endif %}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-<br>
 {% endif %}
 
 <!-- Activities Section -->
@@ -95,6 +95,7 @@
             <th>Sort Order</th>
             <th>Abbreviation</th>
             <th>Description</th>
+            <th>Placeholder</th>
             <th>Parent</th>
             <th>Importance</th>
             <th>Urgency</th>
@@ -127,6 +128,12 @@
                 <input type="text" name="description{{ forloop.counter0 }}" 
                        value="{% if preserved_data and forloop.counter0 in preserved_data %}{{ preserved_data|get_item:forloop.counter0|get_item:'description' }}{% else %}{{ activity.description }}{% endif %}" 
                        maxlength="200" class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <input type="checkbox" name="is_placeholder{{ forloop.counter0 }}" value="1"
+                       {% if preserved_data and forloop.counter0 in preserved_data %}
+                           {% if preserved_data|get_item:forloop.counter0|get_item:'is_placeholder' %}checked{% endif %}
+                       {% elif activity.is_placeholder %}checked{% endif %}>
             </td>
             <td>
                 <select name="parent{{ forloop.counter0 }}" class="form-control{% if errors and forloop.counter0 in errors %} is-invalid{% endif %}">
@@ -192,6 +199,12 @@
                 <input type="text" name="description{{ row_index }}" 
                        value="{% if preserved_data and row_index in preserved_data %}{{ preserved_data|get_item:row_index|get_item:'description' }}{% endif %}" 
                        maxlength="200" class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
+            </td>
+            <td>
+                <input type="checkbox" name="is_placeholder{{ row_index }}" value="1"
+                       {% if preserved_data and row_index in preserved_data %}
+                           {% if preserved_data|get_item:row_index|get_item:'is_placeholder' %}checked{% endif %}
+                       {% endif %}>
             </td>
             <td>
                 <select name="parent{{ row_index }}" class="form-control{% if errors and row_index in errors %} is-invalid{% endif %}">
