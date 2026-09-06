@@ -19,8 +19,7 @@
     {% if plans %}
         {% for plan in plans %}
             <li>
-                {% now "Y-m-d" as today %}
-                {% if plan.date|date:"Y-m-d" == today %}
+                {% if plan.date == today %}
                     <strong>TODAY - {{ plan.date|date:"l, F j, Y" }}:</strong>
                 {% else %}
                     {{ plan.date|date:"l, F j, Y" }}:
