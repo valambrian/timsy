@@ -8,7 +8,7 @@ from django.http import HttpRequest
 
 from timsy.models import ActivityRecord, Place
 from timsy.reports.plan_vs_fact_weekly import PlanVsFactWeeklyRecord
-from timsy.reports.utils import get_report_title
+from timsy.reports.utils import get_report_title, week_start_for
 
 
 def get_plan_vs_fact_weekly_navigation_urls(
@@ -16,10 +16,10 @@ def get_plan_vs_fact_weekly_navigation_urls(
     start_date: date
 ) -> Tuple[str, Optional[str], str, str]:
     """Generate navigation URLs for weekly plan-vs-fact reports.
-    
+
     Args:
         parent: Parent activity filter ('ALL' for all activities)
-        start_date: Start date of the current week (Saturday)
+        start_date: Start date of the current week
         
     Returns:
         Tuple containing:
@@ -48,11 +48,11 @@ def get_plan_vs_fact_weekly_navigation_urls(
 
 def plan_vs_fact_weekly_report(request: HttpRequest, parent: str, start_date: date) -> HttpResponse:
     """Create a weekly plan-vs-fact report with daily and place breakdown.
-    
+
     Args:
         request: The HTTP request object
         parent: Parent activity filter ('ALL' for all activities)
-        start_date: Start date for the week (Saturday)
+        start_date: Start date for the week
         
     Returns:
         Rendered template showing the weekly plan-vs-fact report
@@ -112,7 +112,7 @@ def plan_vs_fact_weekly_report(request: HttpRequest, parent: str, start_date: da
 
 
 def plan_vs_fact_weekly(request: HttpRequest, parent: str, year: int, month: int, day: int) -> HttpResponse:
-    """Create a weekly plan-vs-fact report starting on Saturday.
+    """Create a weekly plan-vs-fact report starting from the specified date.
     
     Args:
         request: The HTTP request object
@@ -129,15 +129,14 @@ def plan_vs_fact_weekly(request: HttpRequest, parent: str, year: int, month: int
 
 
 def latest_plan_vs_fact_weekly(request: HttpRequest) -> HttpResponse:
-    """Create a weekly plan-vs-fact report for the most recent week (Saturday-Friday).
-    
+    """Create a weekly plan-vs-fact report for the most recent configured week.
+
     Args:
         request: The HTTP request object
-        
+
     Returns:
         Rendered template showing the latest weekly plan-vs-fact report
     """
     latest_record_date = ActivityRecord.get_latest().start.date()
-    days_to_subtract = (latest_record_date.weekday() - 5) % 7
-    saturday = latest_record_date - timedelta(days=days_to_subtract)
-    return plan_vs_fact_weekly(request, "ALL", saturday.year, saturday.month, saturday.day) 
+    start = week_start_for(latest_record_date)
+    return plan_vs_fact_weekly(request, "ALL", start.year, start.month, start.day) 

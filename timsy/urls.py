@@ -27,7 +27,6 @@ urlpatterns = [
     path('reports/plan-vs-fact/weekly/latest/', plan_vs_fact_weekly_views.latest_plan_vs_fact_weekly),
     path('reports/summary/weekly/<slug:parent>/<int:year>/<int:month>/<int:day>/', views.weekly_summary),
     path('reports/summary/weekly/latest/', views.latest_weekly_summary),
-    path('reports/summary/my_weekly/latest/', views.latest_my_weekly_summary),
     path('reports/summary/daily_week_breakdown/<slug:parent>/<int:year>/<int:month>/<int:day>/', views.daily_week_breakdown),
     path('reports/summary/daily_week_breakdown/latest/', views.latest_daily_week_breakdown),
     path('reports/summary/monthly/<slug:parent>/<int:year>/<int:month>/<int:day>/', views.monthly_summary),

@@ -1,8 +1,27 @@
 from datetime import date, datetime, time, timedelta
 from typing import Optional, Tuple, List, Union
+from django.conf import settings
 from django.db.models import QuerySet
 
 from ..models import Activity, ActivityRecord
+
+
+def configured_week_start_day() -> int:
+    """Return TIMSY_WEEK_START_DAY (0=Monday ... 6=Sunday), validating the range."""
+    week_start_day = settings.TIMSY_WEEK_START_DAY
+    if week_start_day not in range(7):
+        raise ValueError(
+            "TIMSY_WEEK_START_DAY must be an integer 0 (Monday) through 6 (Sunday); "
+            f"got {week_start_day!r}"
+        )
+    return week_start_day
+
+
+def week_start_for(d: date) -> date:
+    """Return the start of the configured week that contains ``d``."""
+    days_to_subtract = (d.weekday() - configured_week_start_day()) % 7
+    return d - timedelta(days=days_to_subtract)
+
 
 def seconds_to_string(seconds: Optional[int]) -> str:
     """

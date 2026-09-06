@@ -152,3 +152,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
+
+# First day of the week for "latest" weekly reports. Python weekday: 0=Monday ... 6=Sunday.
+# Restart after changing.
+TIMSY_WEEK_START_DAY = 5

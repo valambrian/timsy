@@ -8,16 +8,16 @@ from django.http import HttpRequest
 
 from timsy.models import ActivityRecord, Place
 from timsy.reports.daily_breakdown import DailyBreakdownSummaryRecord
-from timsy.reports.utils import (get_navigation_urls, get_report_title)
+from timsy.reports.utils import (get_navigation_urls, get_report_title, week_start_for)
 
 # weekly-daily report
 def daily_breakdown_report(request: HttpRequest, parent: str, start_date: date) -> HttpResponse:
     """Create a time use report with daily breakdown for a week.
-    
+
     Args:
         request: The HTTP request object
         parent: Parent activity filter ('ALL' for all activities)
-        start_date: Start date for the week (Saturday)
+        start_date: Start date for the week
         
     Returns:
         Rendered template showing the daily breakdown report
@@ -54,7 +54,7 @@ def daily_breakdown_report(request: HttpRequest, parent: str, start_date: date) 
     return HttpResponse(template.render(context, request))
 
 def daily_week_breakdown(request: HttpRequest, parent: str, year: int, month: int, day: int) -> HttpResponse:
-    """Create a time use report with daily breakdown for a week starting on Saturday.
+    """Create a time use report with daily breakdown for a week starting from the specified date.
     
     Args:
         request: The HTTP request object
@@ -70,15 +70,14 @@ def daily_week_breakdown(request: HttpRequest, parent: str, year: int, month: in
     return daily_breakdown_report(request, parent, start_date)
 
 def latest_daily_week_breakdown(request: HttpRequest) -> HttpResponse:
-    """Create a time use report with daily breakdown for the most recent week (Saturday-Friday).
-    
+    """Create a time use report with daily breakdown for the most recent configured week.
+
     Args:
         request: The HTTP request object
-        
+
     Returns:
         Rendered template showing the latest daily breakdown report
     """
     latest_record_date = ActivityRecord.get_latest().start.date()
-    days_to_subtract = (latest_record_date.weekday() - 5) % 7
-    saturday = latest_record_date - timedelta(days=days_to_subtract)
-    return daily_week_breakdown(request, "ALL", saturday.year, saturday.month, saturday.day)
+    start = week_start_for(latest_record_date)
+    return daily_week_breakdown(request, "ALL", start.year, start.month, start.day)

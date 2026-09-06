@@ -9,7 +9,7 @@ from django.http import HttpRequest
 
 from timsy.models import ActivityRecord, Place
 from timsy.reports.summary import SummaryRecord
-from timsy.reports.utils import get_report_title, get_navigation_urls
+from timsy.reports.utils import get_report_title, get_navigation_urls, week_start_for
 
 # daily / weekly / monthly / custom period summary report
 def summary_report(
@@ -96,31 +96,17 @@ def weekly_summary(request: HttpRequest, parent: str, year: int, month: int, day
     return summary_report(request, "weekly", parent, start_date, end_date)
 
 def latest_weekly_summary(request: HttpRequest) -> HttpResponse:
-    """Create a summary time use report for the most recent week (Monday-Sunday).
-    
-    Args:
-        request: The HTTP request object
-        
-    Returns:
-        Rendered template showing the latest weekly summary
-    """
-    latest_record_date = ActivityRecord.get_latest().start.date()
-    monday = latest_record_date - timedelta(days=latest_record_date.weekday())
-    return weekly_summary(request, "ALL", monday.year, monday.month, monday.day)
+    """Create a summary time use report for the most recent configured week.
 
-def latest_my_weekly_summary(request: HttpRequest) -> HttpResponse:
-    """Create a summary time use report for the most recent week (Saturday-Friday).
-    
     Args:
         request: The HTTP request object
-        
+
     Returns:
         Rendered template showing the latest weekly summary
     """
     latest_record_date = ActivityRecord.get_latest().start.date()
-    days_to_subtract = (latest_record_date.weekday() - 5) % 7
-    saturday = latest_record_date - timedelta(days=days_to_subtract)
-    return weekly_summary(request, "ALL", saturday.year, saturday.month, saturday.day)
+    start = week_start_for(latest_record_date)
+    return weekly_summary(request, "ALL", start.year, start.month, start.day)
 
 def monthly_summary(request: HttpRequest, parent: str, year: int, month: int, day: int) -> HttpResponse:
     """Create a monthly summary time use report.
