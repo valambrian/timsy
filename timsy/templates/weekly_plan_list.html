@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Plans{% endblock %}
+
+{% block content %}
+    <h3>Weekly Plans</h3>
+
+    <ul>
+        <li>
+            {% if this_week_plan %}
+                This week ({{ this_week|date:"l, F j, Y" }}):
+            {% else %}
+                This week ({{ this_week|date:"l, F j, Y" }}), not created yet:
+            {% endif %}
+            <a href="{% url 'weekly_plan_edit' this_week.year this_week.month this_week.day %}">edit</a>
+        </li>
+        {% for plan in plans %}
+            <li>
+                Week of {{ plan.week_start|date:"l, F j, Y" }}:
+                <a href="{% url 'weekly_plan_edit' plan.week_start.year plan.week_start.month plan.week_start.day %}">edit</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

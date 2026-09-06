@@ -70,6 +70,15 @@
 {% endif %}
 {% endblock %}
 
+{% block editor_layout %}
+<table>
+    <tr>
+        <td valign="top">{{ block.super }}</td>
+        <td valign="top">{% include "daily_plan_todos.html" %}</td>
+    </tr>
+</table>
+{% endblock %}
+
 {% block form_content %}
 <div style="display: flex; gap: 20px;">
     <div style="flex: 1;">
@@ -183,6 +192,31 @@
             Remaining Time: <span id="remaining-time">24:00</span>
             <span id="duration-warning" class="warning" style="display: none;">Warning: Total duration exceeds 24 hours!</span>
         </div>
+        {% if week_budget %}
+        <div id="week-remaining">
+            <h4>This week's remaining hours</h4>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Parent</th>
+                        <th>Budget</th>
+                        <th>Scheduled</th>
+                        <th>Remaining</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in week_budget %}
+                    <tr>
+                        <td>{{ row.description }}</td>
+                        <td class="timestamp">{{ row.budget }}</td>
+                        <td class="timestamp" id="week-sched-{{ row.parent_id }}">{{ row.scheduled }}</td>
+                        <td class="timestamp" id="week-remain-{{ row.parent_id }}">{{ row.remaining }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
     </div>
     
     <div style="width: 300px;">
@@ -201,6 +235,7 @@
 <script>
 // Blueprint data from Django
 const blueprints = {{ blueprints|safe }};
+const weekBudget = {{ week_budget_json|safe }};
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize blueprint panel
@@ -327,6 +362,7 @@ function addBlueprintEntries(blueprintId, startRowIndex) {
             
             // Update blueprint panel
             updateBlueprintPanel();
+            updateWeekRemaining();
         })
         .catch(error => {
             console.error('Error fetching blueprint entries:', error);
@@ -469,7 +505,7 @@ function getUrgencyOptions() {
 
 // Function to set up drag and drop for dynamically created rows
 function setupDragAndDropForNewRows() {
-    const table = document.querySelector('table');
+    const table = document.getElementById('records-table');
     if (!table) return;
     
     const tbody = table.querySelector('tbody');
@@ -500,6 +536,7 @@ function setupDragAndDropForNewRows() {
                 renumberFormFields();
                 setupDurationFormattingLocal();
                 updateBlueprintPanel();
+                updateWeekRemaining();
             }
         });
     });
@@ -535,5 +572,89 @@ function setupDragAndDropForNewRows() {
         });
     });
 }
+
+function secondsToHHMM(seconds) {
+    var negative = seconds < 0;
+    var absSeconds = Math.abs(seconds);
+    var minutes = Math.floor(absSeconds / 60);
+    var hours = Math.floor(minutes / 60);
+    minutes = minutes - hours * 60;
+    var text = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+    return negative ? '-' + text : text;
+}
+
+function parentCovers(activityParentId, allocationParentId) {
+    return activityParentId === allocationParentId ||
+        (activityParentId && allocationParentId &&
+         activityParentId.indexOf(allocationParentId + '-') === 0);
+}
+
+function formScheduledByActivityParent() {
+    var byParent = {};
+    var rows = document.querySelectorAll('.record-row');
+    rows.forEach(function(row) {
+        var durationInput = row.querySelector('input[id^="id_duration"]');
+        var parentSelect = row.querySelector('select[id^="id_parent"]');
+        if (!durationInput || !durationInput.value || !parentSelect || !parentSelect.value) {
+            return;
+        }
+        var parts = durationInput.value.split(':');
+        if (parts.length !== 2) {
+            return;
+        }
+        var seconds = (parseInt(parts[0], 10) || 0) * 3600 + (parseInt(parts[1], 10) || 0) * 60;
+        if (!seconds) {
+            return;
+        }
+        var parentId = parentSelect.value;
+        byParent[parentId] = (byParent[parentId] || 0) + seconds;
+    });
+    return byParent;
+}
+
+function updateWeekRemaining() {
+    if (!weekBudget) {
+        return;
+    }
+    var formSecs = formScheduledByActivityParent();
+    weekBudget.forEach(function(row) {
+        var formForThis = 0;
+        Object.keys(formSecs).forEach(function(activityParentId) {
+            if (parentCovers(activityParentId, row.parent_id)) {
+                formForThis += formSecs[activityParentId];
+            }
+        });
+        var scheduled = row.other_scheduled_seconds + formForThis;
+        var remaining = row.budget_seconds - scheduled;
+        var scheduledCell = document.getElementById('week-sched-' + row.parent_id);
+        var remainingCell = document.getElementById('week-remain-' + row.parent_id);
+        if (scheduledCell) {
+            scheduledCell.textContent = secondsToHHMM(scheduled);
+        }
+        if (remainingCell) {
+            remainingCell.textContent = secondsToHHMM(remaining);
+        }
+    });
+}
+
+if (typeof calculateTotalDuration === 'function') {
+    var originalCalculateTotalDuration = calculateTotalDuration;
+    calculateTotalDuration = function() {
+        originalCalculateTotalDuration();
+        updateWeekRemaining();
+    };
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var table = document.getElementById('records-table');
+    if (table) {
+        table.addEventListener('change', function(e) {
+            if (e.target.name && e.target.name.indexOf('parent') === 0) {
+                updateWeekRemaining();
+            }
+        });
+    }
+    updateWeekRemaining();
+});
 </script>
 {% endblock %} 

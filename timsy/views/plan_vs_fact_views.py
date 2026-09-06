@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from collections import defaultdict
 
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.template import loader
 from django.http import HttpRequest
 
@@ -61,6 +61,7 @@ def plan_vs_fact_report(
     
     title = f"Plan vs Fact Report For {report_date.strftime('%A, %B %d, %Y')}"
     (previous, next, prefix, suffix) = get_plan_vs_fact_navigation_urls(parent, report_date)
+    daily_plan = DailyPlan.objects.filter(date=report_date).first()
     
     template = loader.get_template('plan_vs_fact_report.html')
     context: Dict[str, Any] = {
@@ -70,7 +71,9 @@ def plan_vs_fact_report(
         'prefix': prefix,
         'suffix': suffix,
         'previous': previous,
-        'next': next
+        'next': next,
+        'show_note_form': True,
+        'note': daily_plan.note if daily_plan else '',
     }
     return HttpResponse(template.render(context, request))
 
@@ -78,6 +81,11 @@ def plan_vs_fact_report(
 def plan_vs_fact_daily(request: HttpRequest, parent: str, year: int, month: int, day: int) -> HttpResponse:
     """Create a daily plan-vs-fact report."""
     report_date = date(year=int(year), month=int(month), day=int(day))
+    if request.method == 'POST' and request.POST.get('action') == 'save_note':
+        plan, _created = DailyPlan.objects.get_or_create(date=report_date)
+        plan.note = request.POST.get('note', '')
+        plan.save(update_fields=['note'])
+        return redirect(request.path)
     return plan_vs_fact_report(request, parent, report_date)
 
 

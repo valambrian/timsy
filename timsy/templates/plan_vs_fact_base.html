@@ -178,4 +178,17 @@
     {% endfor %}
     {% endblock %}
 </table>
+{% if show_note_form %}
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_note">
+    <p>
+        Analysis:<br>
+        <textarea name="note" rows="10" cols="80">{{ note }}</textarea>
+    </p>
+    <p>
+        <button type="submit">Save analysis</button>
+    </p>
+</form>
+{% endif %}
 {% endblock %} 

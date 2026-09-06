@@ -231,4 +231,56 @@ def parse_duration_string(duration_str: str) -> Tuple[int, int]:
     try:
         return tuple(int(x) for x in duration_str.split(":"))
     except (ValueError, AttributeError):
-        return (0, 0) 
+        return (0, 0)
+
+
+def seconds_to_hhmm(seconds: Optional[int]) -> str:
+    """Format seconds as HH:MM, including zero and values over 24 hours.
+
+    Args:
+        seconds: Duration in seconds. None is treated as zero.
+
+    Returns:
+        Formatted time string. Negative values keep a leading minus.
+    """
+    if seconds is None:
+        seconds = 0
+    is_negative = seconds < 0
+    abs_seconds = abs(int(seconds))
+    minutes = abs_seconds // 60
+    hours = minutes // 60
+    minutes -= 60 * hours
+    formatted = "%02d:%02d" % (hours, minutes)
+    if is_negative:
+        return "-" + formatted
+    return formatted
+
+
+def parse_hhmm_to_seconds(duration_str: str) -> Optional[int]:
+    """Parse an HH:MM string that may exceed 24 hours into seconds.
+
+    Empty or whitespace-only strings return None so the caller can skip
+    the row. Invalid strings also return None.
+
+    Args:
+        duration_str: Duration such as 40:00 or 08:30
+
+    Returns:
+        Seconds, or None when the field is empty or invalid
+    """
+    if duration_str is None:
+        return None
+    text = duration_str.strip()
+    if not text:
+        return None
+    parts = text.split(':')
+    if len(parts) != 2:
+        return None
+    try:
+        hours = int(parts[0])
+        minutes = int(parts[1])
+    except ValueError:
+        return None
+    if hours < 0 or minutes < 0 or minutes >= 60:
+        return None
+    return hours * 3600 + minutes * 60 

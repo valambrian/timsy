@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Plan - {{ week_start|date:"F j, Y" }}{% endblock %}
+
+{% block content %}
+<h3>Weekly Plan for the week of {{ week_start|date:"l, F j, Y" }}</h3>
+<p>
+    {% if previous_week %}
+        <a href="{% url 'weekly_plan_edit' previous_week.year previous_week.month previous_week.day %}">Previous</a>
+    {% endif %}
+    {% if previous_week and next_week %}
+        ,
+    {% endif %}
+    <a href="{% url 'weekly_plan_edit' next_week.year next_week.month next_week.day %}">Next</a>
+    |
+    <a href="{% url 'weekly_plan_list' %}">All weeks</a>
+</p>
+
+<form method="post">
+    {% csrf_token %}
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Parent</th>
+                <th>Importance</th>
+                <th>Program</th>
+                <th>Budget</th>
+                <th>Scheduled</th>
+                <th>Remaining</th>
+                <th>Fact</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>
+                    {% if row.parent %}
+                        <input type="hidden" name="parent{{ forloop.counter0 }}" value="{{ row.parent_id }}">
+                        {{ row.description }}
+                    {% else %}
+                        <select name="parent{{ forloop.counter0 }}">
+                            <option value="">---------</option>
+                            {% for parent_id, parent_label in parent_choices %}
+                            <option value="{{ parent_id }}">{{ parent_label }}</option>
+                            {% endfor %}
+                        </select>
+                    {% endif %}
+                </td>
+                <td>{{ row.importance }}</td>
+                <td>
+                    {% if row.program %}
+                        <a href="{% url 'program_editor' row.parent_id %}">{{ row.program.timestamp|date:"M j, Y" }}</a>
+                    {% elif row.parent %}
+                        <a href="{% url 'program_editor' row.parent_id %}">program</a>
+                    {% endif %}
+                </td>
+                <td><input type="text" name="hours{{ forloop.counter0 }}" value="{{ row.budget }}" size="6"></td>
+                <td class="timestamp">{{ row.scheduled }}</td>
+                <td class="timestamp">{{ row.remaining }}</td>
+                <td class="timestamp">{{ row.fact }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td>Total</td>
+                <td></td>
+                <td></td>
+                <td class="timestamp" id="budget-total">{{ totals.budget }}</td>
+                <td class="timestamp">{{ totals.scheduled }}</td>
+                <td class="timestamp">{{ totals.remaining }}</td>
+                <td class="timestamp">{{ totals.fact }}</td>
+            </tr>
+        </tbody>
+    </table>
+    <p>
+        Week total should be {{ totals.week_hhmm }}.
+        {% if totals.budget and not totals.matches_week %}
+            Current budget total is {{ totals.budget }}.
+        {% endif %}
+    </p>
+    <p>
+        Analysis:<br>
+        <textarea name="note" rows="10" cols="80">{{ weekly_plan.note|default:'' }}</textarea>
+    </p>
+    <p>
+        <button type="submit" name="action" value="save">Save</button>
+        {% if previous_plan %}
+        <button type="submit" name="action" value="clone">Clone last week</button>
+        {% endif %}
+    </p>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    function parseHoursToSeconds(value) {
+        if (!value) {
+            return 0;
+        }
+        var parts = value.trim().split(':');
+        if (parts.length !== 2) {
+            return 0;
+        }
+        var hours = parseInt(parts[0], 10);
+        var minutes = parseInt(parts[1], 10);
+        if (isNaN(hours) || isNaN(minutes) || minutes < 0 || minutes >= 60 || hours < 0) {
+            return 0;
+        }
+        return hours * 3600 + minutes * 60;
+    }
+
+    function secondsToHHMM(seconds) {
+        var negative = seconds < 0;
+        var absSeconds = Math.abs(seconds);
+        var minutes = Math.floor(absSeconds / 60);
+        var hours = Math.floor(minutes / 60);
+        minutes = minutes - hours * 60;
+        var text = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+        return negative ? '-' + text : text;
+    }
+
+    function updateBudgetTotal() {
+        var total = 0;
+        var inputs = document.querySelectorAll('input[name^="hours"]');
+        for (var i = 0; i < inputs.length; i++) {
+            total += parseHoursToSeconds(inputs[i].value);
+        }
+        var totalCell = document.getElementById('budget-total');
+        if (totalCell) {
+            totalCell.textContent = secondsToHHMM(total);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var inputs = document.querySelectorAll('input[name^="hours"]');
+        for (var i = 0; i < inputs.length; i++) {
+            inputs[i].addEventListener('input', updateBudgetTotal);
+            inputs[i].addEventListener('blur', updateBudgetTotal);
+        }
+        updateBudgetTotal();
+    });
+</script>
+{% endblock %}

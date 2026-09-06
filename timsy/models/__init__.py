@@ -8,6 +8,7 @@ from .daily_plan import DailyPlan, DailyPlanEntry
 from .blueprint import Blueprint, BlueprintEntry
 from .program import Program
 from .todo_item import ToDoItem
+from .weekly_plan import WeeklyPlan, WeeklyPlanAllocation
 
 __all__ = [
     'Importance',
@@ -24,4 +25,6 @@ __all__ = [
     'BlueprintEntry',
     'Program',
     'ToDoItem',
+    'WeeklyPlan',
+    'WeeklyPlanAllocation',
 ] 

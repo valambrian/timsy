@@ -2,13 +2,13 @@ from datetime import date, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.template import loader
 from django.http import HttpRequest
 
-from timsy.models import ActivityRecord, Place
+from timsy.models import ActivityRecord, Place, WeeklyPlan
 from timsy.reports.plan_vs_fact_weekly import PlanVsFactWeeklyRecord
-from timsy.reports.utils import get_report_title, week_start_for
+from timsy.reports.utils import get_report_title, local_today, week_start_for
 
 
 def get_plan_vs_fact_weekly_navigation_urls(
@@ -16,7 +16,7 @@ def get_plan_vs_fact_weekly_navigation_urls(
     start_date: date
 ) -> Tuple[str, Optional[str], str, str]:
     """Generate navigation URLs for weekly plan-vs-fact reports.
-
+    
     Args:
         parent: Parent activity filter ('ALL' for all activities)
         start_date: Start date of the current week
@@ -32,7 +32,7 @@ def get_plan_vs_fact_weekly_navigation_urls(
     next_date = start_date + timedelta(days=7)
     
     # Check if next week should be available (don't go beyond today)
-    today = date.today()
+    today = local_today()
     if next_date > today:
         next = None
     else:
@@ -48,7 +48,7 @@ def get_plan_vs_fact_weekly_navigation_urls(
 
 def plan_vs_fact_weekly_report(request: HttpRequest, parent: str, start_date: date) -> HttpResponse:
     """Create a weekly plan-vs-fact report with daily and place breakdown.
-
+    
     Args:
         request: The HTTP request object
         parent: Parent activity filter ('ALL' for all activities)
@@ -98,6 +98,8 @@ def plan_vs_fact_weekly_report(request: HttpRequest, parent: str, start_date: da
         dates[i] = date.strftime("%A, %m/%d")
 
     template = loader.get_template('plan_vs_fact_weekly_report.html')
+    week_start = week_start_for(start_date)
+    weekly_plan = WeeklyPlan.objects.filter(week_start=week_start).first()
     context: Dict[str, Any] = {
         'records': records,
         'dates': dates,
@@ -106,7 +108,9 @@ def plan_vs_fact_weekly_report(request: HttpRequest, parent: str, start_date: da
         'prefix': prefix,
         'suffix': suffix,
         'previous': previous,
-        'next': next
+        'next': next,
+        'show_note_form': True,
+        'note': weekly_plan.note if weekly_plan else '',
     }
     return HttpResponse(template.render(context, request))
 
@@ -125,15 +129,21 @@ def plan_vs_fact_weekly(request: HttpRequest, parent: str, year: int, month: int
         Rendered template showing the weekly plan-vs-fact report
     """
     start_date = date(year=int(year), month=int(month), day=int(day))
+    if request.method == 'POST' and request.POST.get('action') == 'save_note':
+        week_start = week_start_for(start_date)
+        plan, _created = WeeklyPlan.objects.get_or_create(week_start=week_start)
+        plan.note = request.POST.get('note', '')
+        plan.save(update_fields=['note'])
+        return redirect(request.path)
     return plan_vs_fact_weekly_report(request, parent, start_date)
 
 
 def latest_plan_vs_fact_weekly(request: HttpRequest) -> HttpResponse:
     """Create a weekly plan-vs-fact report for the most recent configured week.
-
+    
     Args:
         request: The HTTP request object
-
+        
     Returns:
         Rendered template showing the latest weekly plan-vs-fact report
     """

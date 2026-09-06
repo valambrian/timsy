@@ -5,17 +5,29 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from timsy.models import (
+    Activity,
+    ActivityRecord,
     Blueprint,
     BlueprintEntry,
     DailyPlan,
+    DailyPlanEntry,
     Importance,
     Parent,
     Place,
+    Program,
     ToDoItem,
     Urgency,
+    WeeklyPlan,
+    WeeklyPlanAllocation,
 )
-from timsy.reports.utils import local_today
+from timsy.models.weekly_plan import seconds_by_parent
+from timsy.reports.utils import (
+    local_today,
+    parse_hhmm_to_seconds,
+    seconds_to_hhmm,
+)
 from timsy.views.todo_views import _is_past
+from timsy.views.weekly_plan_views import _build_rows
 
 
 class LocalTodayTests(SimpleTestCase):
@@ -560,3 +572,317 @@ class ParentEditorTests(TestCase):
         self.assertTrue(Parent.objects.filter(id='WO', description='Work').exists())
         self.assertFalse(Parent.objects.filter(id='TOOLONG').exists())
         self.assertContains(response, 'ID must be exactly 2 characters')
+
+
+class WeeklyPlanTests(TestCase):
+    """Weekly hour budget, clone, remaining hours, and analysis notes."""
+
+    def setUp(self):
+        self.importance = Importance.objects.create(
+            sort_order=1, abbreviation='A', description='High'
+        )
+        self.urgency = Urgency.objects.create(
+            sort_order=1, abbreviation='A', description='Soon'
+        )
+        self.work = Parent.objects.create(
+            id='WO',
+            sort_order=1,
+            description='Work',
+            importance=self.importance,
+            state=Parent.State.ACTIVE,
+        )
+        self.sleep = Parent.objects.create(
+            id='SL',
+            sort_order=2,
+            description='Sleep',
+            importance=self.importance,
+            state=Parent.State.ACTIVE,
+        )
+        self.paused = Parent.objects.create(
+            id='XX',
+            sort_order=3,
+            description='Paused',
+            importance=self.importance,
+            state=Parent.State.PAUSED,
+        )
+        self.child = Parent.objects.create(
+            id='WO-GP',
+            sort_order=1,
+            description='Portfolio',
+            importance=self.importance,
+            state=Parent.State.ACTIVE,
+        )
+        self.place = Place.objects.create(
+            abbreviation='H', sort_order=1, description='Home'
+        )
+        self.work_activity = Activity.objects.create(
+            sort_order=1,
+            abbreviation='wo',
+            description='Work',
+            parent=self.work,
+            importance=self.importance,
+            urgency=self.urgency,
+        )
+        self.child_activity = Activity.objects.create(
+            sort_order=2,
+            abbreviation='gp',
+            description='Portfolio work',
+            parent=self.child,
+            importance=self.importance,
+            urgency=self.urgency,
+        )
+        self.week_start = date(2026, 8, 29)
+        self.next_week = date(2026, 9, 5)
+        self.edit_url = reverse(
+            'weekly_plan_edit',
+            args=[self.week_start.year, self.week_start.month, self.week_start.day],
+        )
+        self.next_url = reverse(
+            'weekly_plan_edit',
+            args=[self.next_week.year, self.next_week.month, self.next_week.day],
+        )
+
+    def test_week_start_snaps_without_empty_parent_rows(self):
+        wednesday = date(2026, 9, 2)
+        url = reverse(
+            'weekly_plan_edit',
+            args=[wednesday.year, wednesday.month, wednesday.day],
+        )
+        response = self.client.get(url)
+        self.assertRedirects(response, self.edit_url)
+        page = self.client.get(self.edit_url)
+        self.assertNotContains(page, '<input type="hidden" name="parent')
+        self.assertContains(page, '168:00')
+        html = page.content.decode()
+        self.assertTrue(
+            html.find('<th>Parent</th>')
+            < html.find('<th>Importance</th>')
+            < html.find('<th>Program</th>')
+        )
+
+    def test_includes_parents_with_budget_or_scheduled(self):
+        weekly = WeeklyPlan.objects.create(week_start=self.week_start)
+        WeeklyPlanAllocation.objects.create(
+            weekly_plan=weekly, parent=self.work, seconds=10 * 3600
+        )
+        WeeklyPlanAllocation.objects.create(
+            weekly_plan=weekly, parent=self.sleep, seconds=0
+        )
+        plan = DailyPlan.objects.create(date=self.week_start)
+        DailyPlanEntry.objects.create(
+            plan=plan,
+            activity=self.child_activity,
+            place=self.place,
+            start=time(8, 0),
+            duration=time(3, 0),
+        )
+        page = self.client.get(self.edit_url)
+        html = page.content.decode()
+        self.assertIn('<input type="hidden" name="parent0" value="WO">', html)
+        self.assertIn('<input type="hidden" name="parent1" value="WO-GP">', html)
+        self.assertNotIn('<input type="hidden" name="parent2" value="SL">', html)
+        self.assertNotIn('<input type="hidden" name="parent2" value="XX">', html)
+
+    def test_scheduled_parent_appears_without_weekly_plan(self):
+        plan = DailyPlan.objects.create(date=self.week_start)
+        DailyPlanEntry.objects.create(
+            plan=plan,
+            activity=self.work_activity,
+            place=self.place,
+            start=time(9, 0),
+            duration=time(1, 0),
+        )
+        page = self.client.get(self.edit_url)
+        html = page.content.decode()
+        self.assertIn('<input type="hidden" name="parent0" value="WO">', html)
+        self.assertNotIn('<input type="hidden" name="parent1" value="SL">', html)
+
+    def test_includes_parents_with_nonzero_fact(self):
+        weekly = WeeklyPlan.objects.create(week_start=self.week_start)
+        WeeklyPlanAllocation.objects.create(
+            weekly_plan=weekly, parent=self.work, seconds=10 * 3600
+        )
+        ActivityRecord.objects.create(
+            activity=self.work_activity,
+            place=self.place,
+            start=datetime(2026, 8, 29, 8, 0, tzinfo=dt_timezone.utc),
+            duration=time(4, 0),
+        )
+        ActivityRecord.objects.create(
+            activity=self.child_activity,
+            place=self.place,
+            start=datetime(2026, 8, 22, 8, 0, tzinfo=dt_timezone.utc),
+            duration=time(2, 30),
+        )
+        rows, totals = _build_rows(self.week_start, weekly)
+        by_id = {row['parent_id']: row for row in rows if row['parent']}
+        self.assertEqual(by_id['WO']['budget'], '10:00')
+        self.assertEqual(by_id['WO']['fact'], '00:00')
+        self.assertEqual(by_id['WO-GP']['budget'], '')
+        self.assertEqual(by_id['WO-GP']['scheduled'], '00:00')
+        self.assertEqual(by_id['WO-GP']['fact'], '02:30')
+        self.assertNotIn('SL', by_id)
+        self.assertEqual(totals['fact'], '02:30')
+
+    def test_save_hours_over_24_and_child_parent_row(self):
+        response = self.client.post(self.edit_url, {
+            'action': 'save',
+            'parent0': 'WO',
+            'hours0': '40:00',
+            'parent1': 'SL',
+            'hours1': '56:00',
+            'parent2': 'WO-GP',
+            'hours2': '10:00',
+            'note': '',
+        })
+        self.assertRedirects(response, self.edit_url)
+        plan = WeeklyPlan.objects.get(week_start=self.week_start)
+        allocations = {
+            row.parent_id: row.seconds for row in plan.allocations.all()
+        }
+        self.assertEqual(allocations['WO'], 40 * 3600)
+        self.assertEqual(allocations['SL'], 56 * 3600)
+        self.assertEqual(allocations['WO-GP'], 10 * 3600)
+        self.assertEqual(parse_hhmm_to_seconds('40:00'), 40 * 3600)
+        self.assertEqual(seconds_to_hhmm(40 * 3600), '40:00')
+
+    def test_clone_copies_allocations_not_note(self):
+        source = WeeklyPlan.objects.create(
+            week_start=self.week_start, note='Last week went well'
+        )
+        WeeklyPlanAllocation.objects.create(
+            weekly_plan=source, parent=self.work, seconds=40 * 3600
+        )
+        response = self.client.post(self.next_url, {'action': 'clone'})
+        self.assertRedirects(response, self.next_url)
+        cloned = WeeklyPlan.objects.get(week_start=self.next_week)
+        self.assertEqual(cloned.note, '')
+        self.assertEqual(cloned.allocations.get().parent, self.work)
+        self.assertEqual(cloned.allocations.get().seconds, 40 * 3600)
+
+    def test_seconds_by_parent_uses_most_specific_row(self):
+        item = type('Item', (), {})()
+        item.activity = type('Activity', (), {'parent_id': 'WO-GP'})()
+        item.duration = time(3, 0)
+        self.assertEqual(seconds_by_parent([item], ['WO']), {'WO': 3 * 3600})
+        self.assertEqual(
+            seconds_by_parent([item], ['WO', 'WO-GP']),
+            {'WO': 0, 'WO-GP': 3 * 3600},
+        )
+
+    def test_scheduled_fact_remaining_include_descendants(self):
+        weekly = WeeklyPlan.objects.create(week_start=self.week_start)
+        WeeklyPlanAllocation.objects.create(
+            weekly_plan=weekly, parent=self.work, seconds=10 * 3600
+        )
+        plan = DailyPlan.objects.create(date=self.week_start)
+        DailyPlanEntry.objects.create(
+            plan=plan,
+            activity=self.child_activity,
+            place=self.place,
+            start=time(8, 0),
+            duration=time(3, 0),
+        )
+        ActivityRecord.objects.create(
+            activity=self.child_activity,
+            place=self.place,
+            start=datetime(2026, 8, 22, 8, 0, tzinfo=dt_timezone.utc),
+            duration=time(2, 30),
+        )
+        ActivityRecord.objects.create(
+            activity=self.child_activity,
+            place=self.place,
+            start=datetime(2026, 8, 29, 8, 0, tzinfo=dt_timezone.utc),
+            duration=time(4, 0),
+        )
+        rows, totals = _build_rows(self.week_start, weekly)
+        by_id = {row['parent_id']: row for row in rows if row['parent']}
+        self.assertEqual(by_id['WO']['budget'], '10:00')
+        self.assertEqual(by_id['WO']['scheduled'], '00:00')
+        self.assertEqual(by_id['WO']['remaining'], '10:00')
+        self.assertEqual(by_id['WO']['fact'], '00:00')
+        self.assertEqual(by_id['WO-GP']['scheduled'], '03:00')
+        self.assertEqual(by_id['WO-GP']['fact'], '02:30')
+        self.assertEqual(totals['scheduled'], '03:00')
+        self.assertEqual(totals['fact'], '02:30')
+
+    def test_program_link_on_editor(self):
+        Program.objects.create(parent=self.work, description='Ship weekly plans')
+        weekly = WeeklyPlan.objects.create(week_start=self.week_start)
+        WeeklyPlanAllocation.objects.create(
+            weekly_plan=weekly,
+            parent=self.work,
+            seconds=8 * 3600,
+        )
+        page = self.client.get(self.edit_url)
+        self.assertContains(page, reverse('program_editor', args=['WO']))
+        html = page.content.decode()
+        parent_index = html.find('<th>Parent</th>')
+        importance_index = html.find('<th>Importance</th>')
+        program_index = html.find('<th>Program</th>')
+        self.assertTrue(0 <= parent_index < importance_index < program_index)
+        self.assertContains(page, 'High')
+
+    def test_remaining_hours_on_daily_plan_edit(self):
+        weekly = WeeklyPlan.objects.create(week_start=self.week_start)
+        WeeklyPlanAllocation.objects.create(
+            weekly_plan=weekly, parent=self.work, seconds=8 * 3600
+        )
+        DailyPlan.objects.create(date=self.week_start)
+        edit_url = reverse(
+            'daily_plan_edit',
+            args=[self.week_start.year, self.week_start.month, self.week_start.day],
+        )
+        page = self.client.get(edit_url)
+        self.assertContains(page, "This week's remaining hours")
+        self.assertContains(page, 'Work')
+        self.assertContains(page, '08:00')
+
+        other_week = date(2026, 9, 5)
+        DailyPlan.objects.create(date=other_week)
+        other_edit = reverse(
+            'daily_plan_edit',
+            args=[other_week.year, other_week.month, other_week.day],
+        )
+        hidden = self.client.get(other_edit)
+        self.assertNotContains(hidden, "This week's remaining hours")
+
+    def test_daily_plan_vs_fact_saves_note(self):
+        report_url = '/timsy/reports/plan-vs-fact/daily/ALL/2026/8/29/'
+        response = self.client.post(report_url, {
+            'action': 'save_note',
+            'note': 'What went right: logging.\nWhat went wrong: late start.',
+        })
+        self.assertRedirects(response, report_url)
+        plan = DailyPlan.objects.get(date=self.week_start)
+        self.assertIn('late start', plan.note)
+        page = self.client.get(report_url)
+        self.assertContains(page, 'late start')
+
+    def test_weekly_plan_and_report_share_note(self):
+        self.client.post(self.edit_url, {
+            'action': 'save',
+            'parent0': 'WO',
+            'hours0': '08:00',
+            'note': 'Week was noisy.',
+        })
+        plan = WeeklyPlan.objects.get(week_start=self.week_start)
+        self.assertEqual(plan.note, 'Week was noisy.')
+        report_url = '/timsy/reports/plan-vs-fact/weekly/ALL/2026/8/29/'
+        page = self.client.get(report_url)
+        self.assertContains(page, 'Week was noisy.')
+        self.client.post(report_url, {
+            'action': 'save_note',
+            'note': 'Updated weekly analysis.',
+        })
+        plan.refresh_from_db()
+        self.assertEqual(plan.note, 'Updated weekly analysis.')
+
+    def test_index_and_latest_link_to_weekly_plans(self):
+        index = self.client.get(reverse('index'))
+        self.assertContains(index, reverse('weekly_plan_latest'))
+        list_page = self.client.get(reverse('weekly_plan_list'))
+        self.assertContains(list_page, 'This week')
+        with patch('timsy.views.weekly_plan_views.local_today', return_value=self.week_start):
+            latest = self.client.get(reverse('weekly_plan_latest'))
+        self.assertRedirects(latest, self.edit_url)

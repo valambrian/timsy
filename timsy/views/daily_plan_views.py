@@ -2,26 +2,31 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.urls import reverse
 from urllib.parse import urlencode
-from ..models import DailyPlan, Activity, Place, DailyPlanEntry, Blueprint
+from ..models import DailyPlan, Activity, Place, DailyPlanEntry, Blueprint, WeeklyPlan
 from ..models.urgency import Urgency
 from ..models.importance import Importance
 from ..models.parent import Parent
 from datetime import date, timedelta, datetime, time
 from django.core.exceptions import ValidationError
-from ..reports.utils import parse_duration_string, local_today
+from ..reports.utils import local_today, parse_duration_string, week_start_for, seconds_to_hhmm
 import json
 from django.db.models import Case, When, Value, IntegerField
+from .todo_views import (
+    handle_plan_todo_post,
+    plan_todo_redirect,
+    plan_todo_sidebar_context,
+)
 
 def daily_plan_list(request):
     """View for displaying a list of daily plans.
-
+    
     Shows active daily plans by default, or all plans when show=all.
     Today's plan is listed first (if available), then the rest ordered
     by date with the most recent first.
     """
     today = local_today()
     show_all = request.GET.get('show') == 'all'
-
+    
     # Create custom ordering: today's plan first (order=0), then by -date
     plans = DailyPlan.objects.annotate(
         custom_order=Case(
@@ -33,10 +38,11 @@ def daily_plan_list(request):
     if not show_all:
         plans = plans.filter(active=True)
     plans = plans.order_by('custom_order', '-date')
-
+    
     return render(request, 'daily_plan_list.html', {
         'plans': plans,
         'show_all': show_all,
+        'today': today,
     })
 
 
@@ -93,24 +99,66 @@ def daily_plan_create(request):
 def daily_plan_view(request, year, month, day):
     """View for displaying details of a specific daily plan.
     
-    Shows the plan's timeline with activities, places, and durations.
+    Shows the plan's timeline with activities, places, and durations,
+    plus that date's day-horizon todos.
     """
     plan_date = date(year, month, day)
     plan = get_object_or_404(DailyPlan, date=plan_date)
-    
-    # Get entries ordered by start time
+
+    if request.method == 'POST':
+        if handle_plan_todo_post(request):
+            return redirect(plan_todo_redirect(request, year, month, day))
+        return redirect('daily_plan_view', year=year, month=month, day=day)
+
     entries = plan.get_entries().select_related('activity', 'place')
-    
-    return render(request, 'daily_plan_view.html', {
+    context = {
         'plan': plan,
-        'entries': entries
-    })
+        'entries': entries,
+        'today': local_today(),
+    }
+    context.update(plan_todo_sidebar_context(request, plan_date))
+    return render(request, 'daily_plan_view.html', context)
+
+def week_budget_context(plan_date):
+    """Return remaining-hours data for the weekly budget covering plan_date.
+
+    Args:
+        plan_date: The daily plan's date
+
+    Returns:
+        list or None: Allocation rows for the editor, or None when no weekly plan
+    """
+    week_start = week_start_for(plan_date)
+    weekly_plan = WeeklyPlan.for_week_start(week_start)
+    if weekly_plan is None:
+        return None
+    allocations = weekly_plan.get_allocations()
+    if not allocations:
+        return None
+    parent_ids = [allocation.parent_id for allocation in allocations]
+    other_scheduled = weekly_plan.scheduled_seconds(
+        parent_ids, exclude_date=plan_date
+    )
+    rows = []
+    for allocation in allocations:
+        other = other_scheduled.get(allocation.parent_id, 0)
+        rows.append({
+            'parent_id': allocation.parent_id,
+            'description': allocation.parent.description,
+            'budget_seconds': allocation.seconds,
+            'budget': seconds_to_hhmm(allocation.seconds),
+            'other_scheduled_seconds': other,
+            'scheduled': seconds_to_hhmm(other),
+            'remaining': seconds_to_hhmm(allocation.seconds - other),
+        })
+    return rows
+
 
 def daily_plan_edit(request, year, month, day):
     """View for editing a specific daily plan.
     
-    GET: Shows the edit form with current plan data
-    POST: Updates the plan entries with new activities and places
+    GET: Shows the edit form with current plan data and that date's todos
+    POST: Todo actions update todos only; otherwise rebuilds plan entries
     """
     plan_date = date(year, month, day)
     plan = get_object_or_404(DailyPlan, date=plan_date)
@@ -119,6 +167,11 @@ def daily_plan_edit(request, year, month, day):
     entries = plan.get_entries().select_related('activity', 'place')
     
     if request.method == 'POST':
+        if handle_plan_todo_post(request):
+            return redirect(
+                plan_todo_redirect(request, year, month, day, edit=True)
+            )
+
         # Start with a datetime at midnight
         current_datetime = datetime.combine(local_today(), time(hour=0, minute=0))
 
@@ -186,11 +239,15 @@ def daily_plan_edit(request, year, month, day):
             'start_time': start_time.strftime('%H:%M') if start_time else None
         })
 
+    week_budget = week_budget_context(plan_date)
     return render(request, 'daily_plan_edit.html', {
         'plan': plan,
         'entries': entries,
         'form': form,
-        'blueprints': json.dumps(blueprints_data)
+        'blueprints': json.dumps(blueprints_data),
+        'week_budget': week_budget,
+        'week_budget_json': json.dumps(week_budget),
+        **plan_todo_sidebar_context(request, plan_date),
     })
 
 def blueprint_entries_api(request, blueprint_id):
