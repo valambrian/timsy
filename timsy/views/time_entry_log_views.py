@@ -1,5 +1,5 @@
 from datetime import date, datetime, time, timedelta
-from typing import List, Optional, Tuple, Any, Dict
+from typing import Any, Dict
 
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect
@@ -21,11 +21,14 @@ class LogForm(forms.Form):
         place_list: List of valid place abbreviations
         new_records: Number of new record slots to display (default: 5)
     """
-    urgency_list: List[Tuple[str, str]] = Urgency.get_choices()
-    importance_list: List[Tuple[str, str]] = Importance.get_choices()
-    parent_list: List[Tuple[str, str]] = Parent.get_active_choices()
-    place_list: List[str] = Place.get_abbreviations()
     new_records: int = 5
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.urgency_list = Urgency.get_choices()
+        self.importance_list = Importance.get_choices()
+        self.parent_list = Parent.get_active_choices()
+        self.place_list = Place.get_abbreviations()
 
 
 def entry_log(request: HttpRequest) -> HttpResponse:
@@ -64,9 +67,12 @@ def entry_log(request: HttpRequest) -> HttpResponse:
 
             abbreviation = request.POST[f"abbreviation{i}"]
             description = request.POST[f"description{i}"]
-            parent = parents.filter(id=request.POST[f"parent{i}"]).first()
-            importance = importances.filter(id=request.POST[f"importance{i}"]).first()
-            urgency = urgencies.filter(id=request.POST[f"urgency{i}"]).first()
+            parent_id = request.POST.get(f"parent{i}")
+            importance_id = request.POST.get(f"importance{i}")
+            urgency_id = request.POST.get(f"urgency{i}")
+            parent = parents.filter(id=parent_id).first() if parent_id else None
+            importance = importances.filter(id=importance_id).first() if importance_id else None
+            urgency = urgencies.filter(id=urgency_id).first() if urgency_id else None
 
             activity = Activity.find_or_create(abbreviation, description, parent, importance, urgency)
 

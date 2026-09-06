@@ -47,14 +47,20 @@ class Activity(models.Model):
             dict: Dictionary containing:
                 - description: Activity description
                 - parent: Parent category description
+                - parent_id: Parent category id
                 - importance: Importance level description
+                - importance_id: Importance level id
                 - urgency: Urgency level description
+                - urgency_id: Urgency level id
         """
         return {
             "description": self.description,
             "parent": self.parent.description,
+            "parent_id": self.parent.id,
             "importance": self.importance.description,
-            "urgency": self.urgency.description
+            "importance_id": self.importance.id,
+            "urgency": self.urgency.description,
+            "urgency_id": self.urgency.id
         }
 
     @classmethod

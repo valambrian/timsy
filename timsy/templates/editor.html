@@ -57,8 +57,77 @@
         calculateTotalDuration();
     }
 
-    function checkAbbreviation(row) {
-        const abbreviation = document.querySelector(`#id_abbreviation${row}, #id_form-${row}-abbreviation`).value;
+    function getEditorRowIndex(el) {
+        if (el && el.name) {
+            const nameMatch = el.name.match(/(\d+)/);
+            if (nameMatch) {
+                return parseInt(nameMatch[1], 10);
+            }
+        }
+        if (el && el.id) {
+            const idMatch = el.id.match(/(\d+)/);
+            if (idMatch) {
+                return parseInt(idMatch[1], 10);
+            }
+        }
+        return NaN;
+    }
+
+    function isAbbreviationField(el) {
+        if (!el || !el.name) {
+            return false;
+        }
+        return /^abbreviation\d+$/.test(el.name) || /^form-\d+-abbreviation$/.test(el.name);
+    }
+
+    function getRowControl(row, field) {
+        return document.getElementById('id_' + field + row)
+            || document.getElementById('id_form-' + row + '-' + field)
+            || document.querySelector('[name="' + field + row + '"]')
+            || document.querySelector('[name="form-' + row + '-' + field + '"]');
+    }
+
+    function setRowSelect(row, field, id, text) {
+        const control = getRowControl(row, field);
+        if (!control) {
+            return;
+        }
+        if (id !== undefined && id !== null && id !== '') {
+            control.value = String(id);
+            if (control.value == String(id)) {
+                return;
+            }
+        }
+        if (text === undefined || text === null || text === '') {
+            return;
+        }
+        if (control.options) {
+            const wanted = String(text).trim();
+            for (let i = 0; i < control.options.length; i++) {
+                if (control.options[i].text.trim() == wanted) {
+                    control.selectedIndex = i;
+                    return;
+                }
+            }
+        } else {
+            control.value = text;
+        }
+    }
+
+    function checkAbbreviation(rowOrInput) {
+        let input = null;
+        let row = NaN;
+        if (rowOrInput && rowOrInput.tagName) {
+            input = rowOrInput;
+            row = getEditorRowIndex(input);
+        } else {
+            row = parseInt(rowOrInput, 10);
+            input = document.querySelector('#id_abbreviation' + row + ', #id_form-' + row + '-abbreviation, input[name="abbreviation' + row + '"]');
+        }
+        if (!input || isNaN(row)) {
+            return;
+        }
+        const abbreviation = input.value;
         if (!abbreviation) {
             return;
         }
@@ -77,31 +146,18 @@
 
     function displayActivityDetail(row) {
         if (request.readyState == 4) {
+            row = parseInt(row, 10);
             if (request.status == 200) {
                 const record = eval('(' + request.responseText + ')');
                 if (record.description) {
-                    let index;
-                    document.querySelector(`#id_description${row}, #id_form-${row}-description`).value = record.description;
-                    let parent = document.querySelector(`#id_parent${row}, #id_form-${row}-parent`);
-                    for (index = 0; index < parent.length; index = index + 1) {
-                        if (parent.options[index].text == record.parent) {
-                            parent.selectedIndex = index;
-                        }
+                    const description = getRowControl(row, 'description');
+                    if (description) {
+                        description.value = record.description;
                     }
-                    const importance = document.querySelector(`#id_importance${row}, #id_form-${row}-importance`);
-                    for (index = 0; index < importance.length; index = index + 1) {
-                        if (importance.options[index].text == record.importance) {
-                            importance.selectedIndex = index;
-                        }
-                    }
-                    const urgency = document.querySelector(`#id_urgency${row}, #id_form-${row}-urgency`);
-                    for (index = 0; index < urgency.length; index = index + 1) {
-                        if (urgency.options[index].text == record.urgency) {
-                            urgency.selectedIndex = index;
-                        }
-                    }
-                    const next_id = row + 1;
-                    const nextRowDurationField = document.querySelector(`#id_duration${next_id}, #id_form-${next_id}-duration`);
+                    setRowSelect(row, 'parent', record.parent_id, record.parent);
+                    setRowSelect(row, 'importance', record.importance_id, record.importance);
+                    setRowSelect(row, 'urgency', record.urgency_id, record.urgency);
+                    const nextRowDurationField = getRowControl(row + 1, 'duration');
                     if (nextRowDurationField) {
                         nextRowDurationField.focus();
                     }
@@ -373,6 +429,16 @@
         // Initialize drag and drop functionality
         const table = document.querySelector('table');
         if (table) {
+            table.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) {
+                    return;
+                }
+                if (isAbbreviationField(e.target)) {
+                    e.preventDefault();
+                    checkAbbreviation(e.target);
+                }
+            });
+
             const tbody = table.querySelector('tbody');
             let draggedRow = null;
 

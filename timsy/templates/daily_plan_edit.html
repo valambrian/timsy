@@ -100,7 +100,7 @@
                     <input type="text" name="place{{ forloop.counter0 }}" value="{{ entry.place.abbreviation }}" class="form-control" required>
                 </td>
                 <td>
-                    <input type="text" name="abbreviation{{ forloop.counter0 }}" id="id_abbreviation{{ forloop.counter0 }}" value="{{ entry.activity.abbreviation }}" class="form-control" required onblur="checkAbbreviation({{ forloop.counter0 }})">
+                    <input type="text" name="abbreviation{{ forloop.counter0 }}" id="id_abbreviation{{ forloop.counter0 }}" value="{{ entry.activity.abbreviation }}" class="form-control" required onblur="checkAbbreviation(this)">
                 </td>
                 <td>
                     <input type="text" name="description{{ forloop.counter0 }}" id="id_description{{ forloop.counter0 }}" value="{{ entry.activity.description }}" class="form-control" required>
@@ -141,7 +141,7 @@
                     <input type="text" name="place{{ row_num }}" class="form-control">
                 </td>
                 <td>
-                    <input type="text" name="abbreviation{{ row_num }}" id="id_abbreviation{{ row_num }}" class="form-control" onblur="checkAbbreviation({{ row_num }})">
+                    <input type="text" name="abbreviation{{ row_num }}" id="id_abbreviation{{ row_num }}" class="form-control" onblur="checkAbbreviation(this)">
                 </td>
                 <td>
                     <input type="text" name="description{{ row_num }}" id="id_description{{ row_num }}" class="form-control">
@@ -395,7 +395,7 @@ function createNewRow(rowIndex) {
             <input type="text" name="place${rowIndex}" class="form-control">
         </td>
         <td>
-            <input type="text" name="abbreviation${rowIndex}" id="id_abbreviation${rowIndex}" class="form-control" onblur="checkAbbreviation(${rowIndex})">
+            <input type="text" name="abbreviation${rowIndex}" id="id_abbreviation${rowIndex}" class="form-control" onblur="checkAbbreviation(this)">
         </td>
         <td>
             <input type="text" name="description${rowIndex}" id="id_description${rowIndex}" class="form-control">
