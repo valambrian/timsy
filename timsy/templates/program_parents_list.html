@@ -12,7 +12,7 @@
             <th>Sort Order</th>
             <th>Description</th>
             <th>Importance</th>
-            <th>Active</th>
+            <th>State</th>
         </tr>
     </thead>
     <tbody>
@@ -22,7 +22,7 @@
             <td>{{ parent.sort_order }}</td>
             <td><a href="{% url 'program_editor' parent.id %}">{{ parent.description }}</a></td>
             <td>{{ parent.importance.description }}</td>
-            <td>{% if parent.active %}Active{% else %}Inactive{% endif %}</td>
+            <td>{{ parent.get_state_display }}</td>
         </tr>
         {% empty %}
         <tr>

@@ -31,7 +31,7 @@
             <th>Sort Order</th>
             <th>Description</th>
             <th>Importance</th>
-            <th>Active</th>
+            <th>State</th>
         </tr>
     </thead>
     <tbody>
@@ -41,7 +41,7 @@
             <td>{{ child.sort_order }}</td>
             <td><a href="{% url 'program_editor' child.id %}">{{ child.description }}</a></td>
             <td>{{ child.importance.description }}</td>
-            <td>{% if child.active %}Active{% else %}Inactive{% endif %}</td>
+            <td>{{ child.get_state_display }}</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -95,4 +95,319 @@
     </form>
 </div>
 {% endif %}
+
+<h4>Todos</h4>
+<form id="todo-reorder-form" method="post" action="{% url 'program_editor' parent.id %}" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reorder">
+    <input type="hidden" name="item_id" value="">
+    <input type="hidden" name="before_id" value="">
+    <input type="hidden" name="next" value="{{ next_path }}">
+</form>
+<table class="table table-striped" border="1">
+    <thead>
+        <tr>
+            <th></th>
+            <th>Parent</th>
+            <th>Description</th>
+            <th>Horizon</th>
+            <th>Activity</th>
+            <th>Note</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody data-todo-list>
+        {% for item in todos %}
+        <tr data-todo-item data-todo-id="{{ item.id }}">
+            <td><span data-todo-handle data-todo-id="{{ item.id }}" draggable="true">::</span></td>
+            {% if todo_edit_id == item.id %}
+            <td>
+                <select form="todo-edit-{{ item.id }}" name="parent" data-activity-filter>
+                    {% for parent_id, parent_label in parent_list %}
+                    <option value="{{ parent_id }}"{% if item.parent_id == parent_id %} selected{% endif %}>{{ parent_label }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <form id="todo-edit-{{ item.id }}" method="post" action="{% url 'program_editor' parent.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <input type="hidden" name="next" value="{{ cancel_path }}">
+                    <input type="text" name="description" maxlength="200" value="{{ item.description }}">
+                </form>
+            </td>
+            <td>
+                <select form="todo-edit-{{ item.id }}" name="horizon">
+                    {% for value, label in horizon_choices %}
+                    <option value="{{ value }}"{% if item.horizon == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <br>
+                Year:
+                <input form="todo-edit-{{ item.id }}" type="number" name="year" value="{{ item.horizon_date.year }}">
+                <span id="todo-edit-month"{% if item.horizon == 'year' %} hidden{% endif %}>
+                    Month:
+                    <select form="todo-edit-{{ item.id }}" name="month">
+                        {% for value, label in month_choices %}
+                        <option value="{{ value }}"{% if item.horizon_date.month == value %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
+                <span id="todo-edit-day"{% if item.horizon == 'year' or item.horizon == 'month' %} hidden{% endif %}>
+                    Day:
+                    <input form="todo-edit-{{ item.id }}" type="number" name="day" min="1" max="31" value="{{ item.horizon_date.day }}">
+                </span>
+            </td>
+            <td>
+                <select form="todo-edit-{{ item.id }}" name="activity">
+                    <option value="">(none)</option>
+                    {% for activity_id, activity_label in edit_activity_list %}
+                    <option value="{{ activity_id }}"{% if item.activity_id == activity_id %} selected{% endif %}>{{ activity_label }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <textarea form="todo-edit-{{ item.id }}" name="note" rows="2" cols="24">{{ item.note }}</textarea>
+            </td>
+            <td>
+                <table>
+                    <tr>
+                        <td>
+                            <button form="todo-edit-{{ item.id }}" type="submit">Save</button>
+                        </td>
+                        <td>
+                            <a href="{{ cancel_path }}">Cancel</a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            {% else %}
+            <td>{{ item.parent.description }}</td>
+            <td>{{ item.description }}</td>
+            <td><a href="{{ item.horizon_url }}">{{ item.horizon_title }}</a></td>
+            <td>{% if item.activity %}{{ item.activity }}{% endif %}</td>
+            <td>{{ item.note }}</td>
+            <td>
+                <table>
+                    <tr>
+                        <td>
+                            <form method="get" action="{% url 'program_editor' parent.id %}">
+                                {% if program %}
+                                <input type="hidden" name="program" value="{{ program.id }}">
+                                {% endif %}
+                                {% if editing %}
+                                <input type="hidden" name="edit" value="1">
+                                {% endif %}
+                                <input type="hidden" name="todo_edit" value="{{ item.id }}">
+                                <button type="submit">Edit</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="post" action="{% url 'program_editor' parent.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <input type="hidden" name="next" value="{{ next_path }}">
+                                <button type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7">(none)</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p>
+    <button type="button" data-todo-add>Add</button>
+</p>
+
+<dialog id="todo-add-dialog">
+    <form method="post" action="{% url 'program_editor' parent.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <h4>Add todo</h4>
+        <p>
+            Parent:
+            <select name="parent" required>
+                {% for parent_id, parent_label in parent_list %}
+                <option value="{{ parent_id }}"{% if parent_id == parent.id %} selected{% endif %}>{{ parent_label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            Description:
+            <input type="text" name="description" maxlength="200" required>
+        </p>
+        <p>
+            Horizon:
+            <select name="horizon">
+                {% for value, label in horizon_choices %}
+                <option value="{{ value }}"{% if value == 'year' %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            Year:
+            <input type="number" name="year" value="{{ default_year }}">
+        </p>
+        <p id="todo-add-month">
+            Month:
+            <select name="month">
+                {% for value, label in month_choices %}
+                <option value="{{ value }}"{% if value == 1 %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p id="todo-add-day">
+            Day:
+            <input type="number" name="day" min="1" max="31" value="1">
+        </p>
+        <p>
+            Activity:
+            <select name="activity">
+                <option value="">(none)</option>
+                {% for activity_id, activity_label in activity_list %}
+                <option value="{{ activity_id }}">{{ activity_label }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p>
+            Note:<br>
+            <textarea name="note" rows="3" cols="40"></textarea>
+        </p>
+        <p>
+            <button type="submit">Save</button>
+            <button type="button" id="todo-add-cancel">Cancel</button>
+        </p>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script type="text/javascript">
+(function () {
+    var draggedId = null;
+    document.querySelectorAll("[data-todo-handle]").forEach(function (handle) {
+        handle.addEventListener("dragstart", function (e) {
+            draggedId = this.getAttribute("data-todo-id");
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", draggedId);
+        });
+        handle.addEventListener("dragend", function () {
+            draggedId = null;
+        });
+    });
+    var list = document.querySelector("[data-todo-list]");
+    if (list) {
+        list.addEventListener("dragover", function (e) {
+            e.preventDefault();
+        });
+        list.addEventListener("drop", function (e) {
+            e.preventDefault();
+            var itemId = draggedId || e.dataTransfer.getData("text/plain");
+            if (!itemId) {
+                return;
+            }
+            var overItem = e.target.closest("[data-todo-item]");
+            var beforeId = "";
+            if (overItem) {
+                beforeId = overItem.getAttribute("data-todo-id") || "";
+                if (beforeId === itemId) {
+                    return;
+                }
+            }
+            var form = document.getElementById("todo-reorder-form");
+            form.item_id.value = itemId;
+            form.before_id.value = beforeId;
+            form.submit();
+        });
+    }
+    var dialog = document.getElementById("todo-add-dialog");
+    var addForm = dialog.querySelector("form");
+    function syncHorizonFields(form, monthId, dayId) {
+        var h = form.horizon.value;
+        document.getElementById(monthId).hidden = (h === "year");
+        document.getElementById(dayId).hidden = (h === "year" || h === "month");
+    }
+    function syncAddHorizonFields() {
+        syncHorizonFields(addForm, "todo-add-month", "todo-add-day");
+    }
+    addForm.horizon.addEventListener("change", syncAddHorizonFields);
+    document.querySelectorAll("[data-todo-add]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            addForm.parent.value = "{{ parent.id }}";
+            addForm.description.value = "";
+            addForm.activity.value = "";
+            addForm.note.value = "";
+            addForm.horizon.value = "year";
+            addForm.year.value = "{{ default_year }}";
+            addForm.month.value = "1";
+            addForm.day.value = "1";
+            syncAddHorizonFields();
+            dialog.showModal();
+        });
+    });
+    syncAddHorizonFields();
+    var editForm = document.querySelector("form[id^='todo-edit-']");
+    if (editForm && editForm.horizon) {
+        function syncEditHorizonFields() {
+            syncHorizonFields(editForm, "todo-edit-month", "todo-edit-day");
+        }
+        editForm.horizon.addEventListener("change", syncEditHorizonFields);
+        syncEditHorizonFields();
+    }
+    document.getElementById("todo-add-cancel").addEventListener("click", function () {
+        dialog.close();
+    });
+    dialog.addEventListener("click", function (e) {
+        if (e.target === dialog) {
+            dialog.close();
+        }
+    });
+
+    var activitiesByParent = {{ activities_by_parent_json|safe }};
+    document.querySelectorAll("[data-activity-filter]").forEach(function (parentSelect) {
+        var row = parentSelect.closest("[data-todo-item]");
+        var activitySelect = row ? row.querySelector("select[name=activity]") : null;
+        if (!activitySelect && parentSelect.form) {
+            activitySelect = parentSelect.form.querySelector("select[name=activity]");
+        }
+        if (!activitySelect) {
+            return;
+        }
+        parentSelect.addEventListener("change", function () {
+            var kept = activitySelect.value;
+            var options = activitiesByParent[parentSelect.value] || [];
+            activitySelect.innerHTML = "";
+            var none = document.createElement("option");
+            none.value = "";
+            none.textContent = "(none)";
+            activitySelect.appendChild(none);
+            var found = false;
+            options.forEach(function (opt) {
+                var option = document.createElement("option");
+                option.value = opt[0];
+                option.textContent = opt[1];
+                if (String(opt[0]) === kept) {
+                    option.selected = true;
+                    found = true;
+                }
+                activitySelect.appendChild(option);
+            });
+            if (!found) {
+                activitySelect.value = "";
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}
