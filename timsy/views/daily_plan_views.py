@@ -133,7 +133,7 @@ def daily_plan_edit(request, year, month, day):
                 break
 
             # Get form values
-            abbreviation = request.POST[f'abbreviation{i}']
+            abbreviation = request.POST.get(f'abbreviation{i}', '')
             description = request.POST[f'description{i}']
             parent = Parent.objects.get(id=request.POST[f'parent{i}'])
             importance = Importance.objects.get(id=request.POST[f'importance{i}'])
@@ -168,7 +168,7 @@ def daily_plan_edit(request, year, month, day):
 
     # Prepare form data for template
     form = {
-        'parent_list': [(p.id, str(p)) for p in Parent.objects.filter(active=True)],
+        'parent_list': Parent.get_active_choices(),
         'importance_list': [(i.id, str(i)) for i in Importance.objects.all()],
         'urgency_list': [(u.id, str(u)) for u in Urgency.objects.all()],
         'place_list': list(Place.objects.values_list('abbreviation', flat=True))

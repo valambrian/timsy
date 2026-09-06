@@ -100,7 +100,7 @@
                     <input type="text" name="place{{ forloop.counter0 }}" value="{{ entry.place.abbreviation }}" class="form-control" required>
                 </td>
                 <td>
-                    <input type="text" name="abbreviation{{ forloop.counter0 }}" id="id_abbreviation{{ forloop.counter0 }}" value="{{ entry.activity.abbreviation }}" class="form-control" required onblur="checkAbbreviation(this)">
+                    <input type="text" name="abbreviation{{ forloop.counter0 }}" id="id_abbreviation{{ forloop.counter0 }}" value="{{ entry.activity.abbreviation }}" class="form-control" onblur="checkAbbreviation(this)">
                 </td>
                 <td>
                     <input type="text" name="description{{ forloop.counter0 }}" id="id_description{{ forloop.counter0 }}" value="{{ entry.activity.description }}" class="form-control" required>
