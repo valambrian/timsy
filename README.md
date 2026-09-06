@@ -4,17 +4,20 @@ Timsy is a Django-based time management and activity tracking system designed to
 
 ## Features
 
-- Activity tracking with importance and urgency levels, and optional notes per record
+- Activity tracking with importance and urgency levels, optional notes per record, and a placeholder flag for time-bucket slots
 - Location-based time tracking
 - Comprehensive reporting system:
   - Daily logs
-  - Weekly summaries
-  - Monthly summaries
-  - Plan-vs-fact comparisons (daily and weekly)
+  - Weekly summaries (configurable week start), monthly summaries
+  - Plan-vs-fact comparisons (daily and weekly), with shared free-text review notes
   - Custom date range reports
 - Daily plans, built from reusable blueprints, with active/inactive filtering
+- Blueprints can declare a recurring schedule (weekdays, interval, anchor date) so only matching ones are offered per day, plus creation and cloning
+- Weekly hour budgets by parent, with remaining-hours shown on the daily plan editor
 - Programs: versioned, free-text planning docs per parent category
-- Parent-Child activity organization
+- ToDoItem queues per parent, worked at year/month/week/day horizons from Programs or the daily plan view
+- A pomodoro timer embedded in today's daily plan view, with current-row highlighting
+- Parent-Child activity organization, with an inline editor and a pending/active/paused/completed/cancelled lifecycle state
 
 ## Project Structure
 
@@ -39,15 +42,17 @@ timsy/                    # Repo root
 ## Data Models
 
 ### Core Models
-- `Activity`: Individual tasks with importance and urgency levels
+- `Activity`: Individual tasks with importance and urgency levels, and an `is_placeholder` flag for time-bucket slots
 - `ActivityRecord`: Records of when activities were performed, with an optional note
-- `Parent`: High-level categories for activities
+- `Parent`: High-level categories for activities, with a pending/active/paused/completed/cancelled lifecycle state
 - `Importance`: Classification of activity importance
 - `Urgency`: Classification of activity urgency
 - `Place`: Different locations where activities can occur
-- `DailyPlan` / `DailyPlanEntry`: A plan of activities for a specific date; plans can be marked active/inactive
-- `Blueprint` / `BlueprintEntry`: Reusable templates for building daily plans
+- `DailyPlan` / `DailyPlanEntry`: A plan of activities for a specific date; plans can be marked active/inactive and carry a review note
+- `Blueprint` / `BlueprintEntry`: Reusable templates for building daily plans, with an optional recurring schedule (weekdays, interval, anchor date)
 - `Program`: A versioned, free-text planning document for a parent category
+- `ToDoItem`: A work-queue item scoped to a parent, tracked at a year/month/week/day horizon
+- `WeeklyPlan` / `WeeklyPlanAllocation`: An hour budget per parent for a given week, with a shared review note
 
 ## Setup and Installation
 
@@ -76,7 +81,9 @@ timsy/                    # Repo root
 1. Access the main interface at `http://localhost:8000/timsy/`
 2. Use the activity log to record your activities
 3. View reports and summaries through the reporting interface
-4. Plan your day using daily plans, optionally seeded from a blueprint
+4. Plan your day using daily plans, optionally seeded from a blueprint (with a pomodoro timer on today's plan)
+5. Set an hour budget per parent for the week using Weekly Plans
+6. Track a parent's work queue at year/month/week/day horizons using ToDo Queues, from Programs or the daily plan view
 
 ## API Endpoints
 
@@ -86,8 +93,7 @@ timsy/                    # Repo root
 - `GET /timsy/reports/summary/daily/<parent>/<year>/<month>/<day>/`: Daily summary
 - `GET /timsy/reports/summary/daily/latest/`: Most recent daily summary
 - `GET /timsy/reports/summary/weekly/<parent>/<year>/<month>/<day>/`: Weekly summary
-- `GET /timsy/reports/summary/weekly/latest/`: Most recent weekly summary
-- `GET /timsy/reports/summary/my_weekly/latest/`: Most recent personal weekly summary
+- `GET /timsy/reports/summary/weekly/latest/`: Most recent weekly summary (week starts on `TIMSY_WEEK_START_DAY`)
 - `GET /timsy/reports/summary/monthly/<parent>/<year>/<month>/<day>/`: Monthly summary
 - `GET /timsy/reports/summary/monthly/latest/`: Most recent monthly summary
 - `GET /timsy/reports/summary/daily_week_breakdown/<parent>/<year>/<month>/<day>/`: Daily/weekly breakdown
@@ -103,7 +109,9 @@ timsy/                    # Repo root
 - `GET /timsy/data/activities/<abbreviation>/`: Get activity details
 - `GET/POST /timsy/data/entry_log/`: Activity log entry interface
 - `GET /timsy/activities/<parent_id>/`: Activity editor
-- `GET /timsy/parents/top/`: Top-level parent list
+- `GET /timsy/parents/top/`: Top-level parent list; also creates/updates top-level parents (POST)
+- `POST /timsy/parents/<parent_id>/set-state/`: Set a parent's lifecycle state
+- `GET/POST /timsy/parents/<parent_id>/`: Create/update a parent's direct child categories
 
 ### Daily Plans
 - `GET /timsy/data/plans/daily/`: Daily plan list (active only by default; `?show=all` for all)
@@ -112,15 +120,27 @@ timsy/                    # Repo root
 - `GET/POST /timsy/data/plans/daily/<year>/<month>/<day>/edit/`: Edit a daily plan
 - `GET /timsy/data/plans/daily/<year>/<month>/<day>/toggle-active/`: Toggle a plan's active flag
 
+### Weekly Plans
+- `GET /timsy/data/plans/weekly/`: Weekly plan list
+- `GET /timsy/data/plans/weekly/latest/`: Most recent configured week
+- `GET/POST /timsy/data/plans/weekly/<year>/<month>/<day>/`: View/edit an hour budget per parent, or clone the prior week
+
 ### Blueprints
-- `GET /timsy/blueprints/`: Blueprint list
+- `GET /timsy/blueprints/`: Blueprint list (active only by default; `?show=all` for all)
+- `GET/POST /timsy/blueprints/create/`: Create a blueprint (name plus optional schedule)
+- `GET /timsy/blueprints/<id>/toggle-active/`: Toggle a blueprint's active flag
+- `GET/POST /timsy/blueprints/<id>/clone/`: Clone a blueprint's entries and schedule
 - `GET /timsy/blueprints/<id>/`: Blueprint detail
 - `GET/POST /timsy/blueprints/<id>/edit/`: Edit a blueprint
 - `GET /timsy/api/blueprints/<blueprint_id>/entries/`: Blueprint entries (JSON)
 
 ### Programs
 - `GET /timsy/programs/parents/top/`: Top-level parent list (Programs entry point)
-- `GET/POST /timsy/programs/<parent_id>/`: View, edit, or clone a parent's program
+- `GET/POST /timsy/programs/<parent_id>/`: View, edit, or clone a parent's program; also creates/edits/deletes/reorders that parent's todos
+
+### ToDo Queues
+- `GET /timsy/todos/today/`, `this-week/`, `this-month/`, `this-year/`: Redirect to the matching dated list below, relative to today
+- `GET/POST /timsy/todos/daily/<year>/<month>/<day>/`, `weekly/<year>/<month>/<day>/`, `monthly/<year>/<month>/`, `yearly/<year>/`: Todos due for a specific period; also creates/edits/deletes/reorders/moves todos
 
 ## Contributing
 
