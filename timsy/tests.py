@@ -1,10 +1,19 @@
-from datetime import date, datetime, timezone as dt_timezone
+from datetime import date, datetime, time, timezone as dt_timezone
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
-from timsy.models import Importance, Parent, ToDoItem
+from timsy.models import (
+    Blueprint,
+    BlueprintEntry,
+    DailyPlan,
+    Importance,
+    Parent,
+    Place,
+    ToDoItem,
+    Urgency,
+)
 from timsy.reports.utils import local_today
 from timsy.views.todo_views import _is_past
 
@@ -128,3 +137,264 @@ class ProgramEditorTodoHorizonTests(TestCase):
         self.assertEqual(self.todo.horizon, ToDoItem.Horizon.YEAR)
         self.assertEqual(self.todo.horizon_date, date(2026, 1, 1))
         self.assertEqual(self.todo.sort_order, 3)
+
+
+class BlueprintScheduleTests(TestCase):
+    """Blueprint weekday mask, interval weeks, and anchor date."""
+
+    def test_mask_from_weekdays(self):
+        self.assertEqual(Blueprint.mask_from_weekdays([]), 0)
+        self.assertEqual(Blueprint.mask_from_weekdays([0]), 1)
+        self.assertEqual(Blueprint.mask_from_weekdays([6]), 1 << 6)
+        self.assertEqual(Blueprint.mask_from_weekdays([0, 3]), (1 << 0) | (1 << 3))
+
+    def test_weekdays_and_label(self):
+        blueprint = Blueprint.objects.create(
+            name='Mon Thu',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([0, 3]),
+            interval_weeks=1,
+        )
+        self.assertEqual(blueprint.weekdays(), [0, 3])
+        self.assertEqual(blueprint.weekday_names(), ['Monday', 'Thursday'])
+        self.assertEqual(blueprint.schedule_label(), 'Monday, Thursday')
+
+    def test_matches_weekdays_every_week(self):
+        blueprint = Blueprint.objects.create(
+            name='Mon Thu',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([0, 3]),
+            interval_weeks=1,
+        )
+        monday = date(2026, 9, 7)
+        thursday = date(2026, 9, 3)
+        tuesday = date(2026, 9, 8)
+        self.assertEqual(monday.weekday(), 0)
+        self.assertEqual(thursday.weekday(), 3)
+        self.assertTrue(blueprint.matches_date(monday))
+        self.assertTrue(blueprint.matches_date(thursday))
+        self.assertFalse(blueprint.matches_date(tuesday))
+
+    def test_matches_every_other_sunday_from_anchor(self):
+        anchor = date(2026, 9, 6)
+        self.assertEqual(anchor.weekday(), 6)
+        blueprint = Blueprint.objects.create(
+            name='Recycle Sunday',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([6]),
+            interval_weeks=2,
+            anchor_date=anchor,
+        )
+        self.assertTrue(blueprint.matches_date(anchor))
+        self.assertFalse(blueprint.matches_date(date(2026, 9, 13)))
+        self.assertTrue(blueprint.matches_date(date(2026, 9, 20)))
+        self.assertFalse(blueprint.matches_date(date(2026, 9, 7)))
+        self.assertEqual(
+            blueprint.schedule_label(),
+            'Sunday every 2 weeks from 2026-09-06',
+        )
+
+    def test_interval_without_anchor_does_not_match(self):
+        blueprint = Blueprint.objects.create(
+            name='Unset recycle',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([6]),
+            interval_weeks=2,
+        )
+        self.assertFalse(blueprint.matches_date(date(2026, 9, 6)))
+
+    def test_empty_mask_matches_no_dates(self):
+        blueprint = Blueprint.objects.create(name='Unset', is_active=True)
+        self.assertEqual(blueprint.weekday_mask, 0)
+        self.assertEqual(blueprint.interval_weeks, 1)
+        self.assertIsNone(blueprint.anchor_date)
+        self.assertFalse(blueprint.matches_date(date(2026, 9, 3)))
+        self.assertEqual(blueprint.schedule_label(), 'no weekdays')
+
+    def test_create_saves_schedule(self):
+        response = self.client.post(
+            reverse('blueprint_create'),
+            {
+                'name': 'Monday',
+                'weekdays': ['0'],
+                'interval_weeks': '1',
+            },
+        )
+        blueprint = Blueprint.objects.get(name='Monday')
+        self.assertRedirects(response, reverse('blueprint_edit', args=[blueprint.id]))
+        self.assertEqual(blueprint.weekday_mask, Blueprint.mask_from_weekdays([0]))
+        self.assertEqual(blueprint.interval_weeks, 1)
+        self.assertIsNone(blueprint.anchor_date)
+
+    def test_clone_copies_then_overrides_schedule(self):
+        source = Blueprint.objects.create(
+            name='Sunday',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([6]),
+            interval_weeks=1,
+        )
+        get_response = self.client.get(reverse('blueprint_clone', args=[source.id]))
+        self.assertContains(get_response, 'Sunday')
+        self.assertContains(get_response, 'value="6"')
+        self.assertContains(get_response, 'value="6" checked')
+
+        response = self.client.post(
+            reverse('blueprint_clone', args=[source.id]),
+            {
+                'name': 'Recycle Sunday',
+                'weekdays': ['6'],
+                'interval_weeks': '2',
+                'anchor_date': '2026-09-06',
+            },
+        )
+        clone = Blueprint.objects.get(name='Recycle Sunday')
+        self.assertRedirects(response, reverse('blueprint_edit', args=[clone.id]))
+        self.assertEqual(clone.weekday_mask, Blueprint.mask_from_weekdays([6]))
+        self.assertEqual(clone.interval_weeks, 2)
+        self.assertEqual(clone.anchor_date, date(2026, 9, 6))
+        source.refresh_from_db()
+        self.assertEqual(source.interval_weeks, 1)
+        self.assertIsNone(source.anchor_date)
+
+    def test_edit_saves_schedule_without_wiping_when_no_rows(self):
+        blueprint = Blueprint.objects.create(name='Weekday', is_active=True)
+        response = self.client.post(
+            reverse('blueprint_edit', args=[blueprint.id]),
+            {
+                'weekdays': ['0', '3'],
+                'interval_weeks': '1',
+                'anchor_date': '',
+            },
+        )
+        self.assertRedirects(response, reverse('blueprint_edit', args=[blueprint.id]))
+        blueprint.refresh_from_db()
+        self.assertEqual(blueprint.weekday_mask, Blueprint.mask_from_weekdays([0, 3]))
+        self.assertEqual(blueprint.interval_weeks, 1)
+        self.assertIsNone(blueprint.anchor_date)
+
+    def test_edit_skips_zero_duration_rows(self):
+        importance = Importance.objects.create(
+            sort_order=1, abbreviation='A', description='High'
+        )
+        urgency = Urgency.objects.create(
+            sort_order=1, abbreviation='A', description='Soon'
+        )
+        parent = Parent.objects.create(
+            id='WO',
+            sort_order=1,
+            description='Work',
+            importance=importance,
+            state=Parent.State.ACTIVE,
+        )
+        place = Place.objects.create(
+            abbreviation='H', sort_order=1, description='Home'
+        )
+        blueprint = Blueprint.objects.create(name='Work day', is_active=True)
+
+        def row(index, duration, abbreviation, description, start=''):
+            data = {
+                'duration%d' % index: duration,
+                'abbreviation%d' % index: abbreviation,
+                'description%d' % index: description,
+                'parent%d' % index: parent.id,
+                'importance%d' % index: str(importance.id),
+                'urgency%d' % index: str(urgency.id),
+                'place%d' % index: place.abbreviation,
+            }
+            if start:
+                data['start%d' % index] = start
+            return data
+
+        post = {
+            'weekdays': ['0'],
+            'interval_weeks': '1',
+            'anchor_date': '',
+        }
+        post.update(row(0, '1:00', 'wo', 'Work', start='08:00'))
+        post.update(row(1, '0:00', 'skip', 'Should be ignored'))
+        post.update(row(2, '2:00', 'mt', 'Meeting'))
+        post.update(row(3, '', '', ''))
+
+        response = self.client.post(
+            reverse('blueprint_edit', args=[blueprint.id]),
+            post,
+        )
+        self.assertRedirects(response, reverse('blueprint_edit', args=[blueprint.id]))
+        entries = list(BlueprintEntry.objects.filter(blueprint=blueprint).order_by('start'))
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(entries[0].start, time(8, 0))
+        self.assertEqual(entries[0].duration, time(1, 0))
+        self.assertEqual(entries[0].activity.abbreviation, 'wo')
+        self.assertEqual(entries[1].start, time(9, 0))
+        self.assertEqual(entries[1].duration, time(2, 0))
+        self.assertEqual(entries[1].activity.abbreviation, 'mt')
+
+    def test_list_and_detail_show_schedule(self):
+        blueprint = Blueprint.objects.create(
+            name='Work day',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([0]),
+        )
+        listing = self.client.get(reverse('blueprint_list'))
+        self.assertContains(listing, 'Work day')
+        self.assertContains(listing, 'Monday')
+        detail = self.client.get(reverse('blueprint_detail', args=[blueprint.id]))
+        self.assertContains(detail, 'Schedule: Monday')
+
+
+class DailyPlanBlueprintPanelTests(TestCase):
+    """The plan editor lists only blueprints whose schedule matches the plan date."""
+
+    def setUp(self):
+        self.plan_date = date(2026, 9, 3)
+        self.assertEqual(self.plan_date.weekday(), 3)
+        self.plan = DailyPlan.objects.create(date=self.plan_date)
+        self.thursday = Blueprint.objects.create(
+            name='Thursday template',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([3]),
+        )
+        Blueprint.objects.create(
+            name='Monday template',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([0]),
+        )
+        Blueprint.objects.create(
+            name='Unscheduled template',
+            is_active=True,
+        )
+        Blueprint.objects.create(
+            name='Other Thursday template',
+            is_active=True,
+            weekday_mask=Blueprint.mask_from_weekdays([3]),
+            interval_weeks=2,
+            anchor_date=date(2026, 9, 10),
+        )
+        Blueprint.objects.create(
+            name='Inactive Thursday template',
+            is_active=False,
+            weekday_mask=Blueprint.mask_from_weekdays([3]),
+        )
+
+    def test_for_date_returns_matching_active_blueprints(self):
+        matching = Blueprint.for_date(self.plan_date)
+        self.assertEqual([blueprint.name for blueprint in matching], [
+            'Thursday template',
+        ])
+
+    def test_edit_panel_omits_incompatible_blueprints(self):
+        response = self.client.get(
+            reverse(
+                'daily_plan_edit',
+                args=[
+                    self.plan_date.year,
+                    self.plan_date.month,
+                    self.plan_date.day,
+                ],
+            )
+        )
+        self.assertContains(response, 'Thursday template')
+        self.assertNotContains(response, 'Monday template')
+        self.assertNotContains(response, 'Unscheduled template')
+        self.assertNotContains(response, 'Other Thursday template')
+        self.assertNotContains(response, 'Inactive Thursday template')

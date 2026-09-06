@@ -4,10 +4,12 @@
 
 {% block content %}
     <h3>{{ blueprint.name }} ({% if blueprint.is_active %}Active{% else %}Inactive{% endif %})</h3>
+    <p>Schedule: {{ blueprint.schedule_label }}</p>
 
-    <div class="actions" style="margin-bottom: 20px;">
-        <a href="{% url 'blueprint_edit' blueprint.id %}" class="button">Edit Blueprint</a>
-    </div>
+    <form>
+        <button type="submit" formaction="{% url 'blueprint_edit' blueprint.id %}" formmethod="get">Edit</button>
+        <button type="submit" formaction="{% url 'blueprint_clone' blueprint.id %}" formmethod="get">Clone</button>
+    </form>
 
     <table class="data-table" border="1">
         <thead>

@@ -174,8 +174,8 @@ def daily_plan_edit(request, year, month, day):
         'place_list': list(Place.objects.values_list('abbreviation', flat=True))
     }
 
-    # Get all active blueprints for the blueprint panel
-    blueprints = Blueprint.objects.filter(is_active=True).order_by('name')
+    # Active blueprints whose schedule matches this plan date
+    blueprints = Blueprint.for_date(plan_date)
     blueprints_data = []
     for blueprint in blueprints:
         blueprint_entries = blueprint.get_entries()

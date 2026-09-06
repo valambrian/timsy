@@ -1,0 +1,19 @@
+<p>
+    Weekdays:
+    {% for value, label in weekday_choices %}
+    <label>
+        <input type="checkbox" name="weekdays" value="{{ value }}"{% if value in selected_weekdays %} checked{% endif %}>
+        {{ label }}
+    </label>
+    {% endfor %}
+</p>
+<p>
+    <label for="interval_weeks">Interval weeks:</label>
+    <input type="number" id="interval_weeks" name="interval_weeks" min="1" value="{{ interval_weeks }}">
+    (1 = every week, 2 = every other week)
+</p>
+<p>
+    <label for="anchor_date">Anchor date:</label>
+    <input type="date" id="anchor_date" name="anchor_date" value="{{ anchor_date_value }}">
+    (needed when interval weeks is greater than 1)
+</p>

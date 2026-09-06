@@ -5,11 +5,27 @@
 {% block content %}
     <h3>Blueprints</h3>
 
+    <p>
+        {% if show_all %}
+            <a href="{% url 'blueprint_list' %}">Active only</a> | All
+        {% else %}
+            Active only | <a href="{% url 'blueprint_list' %}?show=all">All</a>
+        {% endif %}
+    </p>
+
     <ul>
+        <li><a href="{% url 'blueprint_create' %}">New Blueprint</a></li>
         {% for blueprint in records %}
-        <li>{{ blueprint.name }} ({% if blueprint.is_active %}Active{% else %}Inactive{% endif %}):
-            <a href="{% url 'blueprint_detail' blueprint.id %}">view</a>,
-            <a href="{% url 'blueprint_edit' blueprint.id %}">edit</a>
+        <li>{{ blueprint.name }} ({{ blueprint.schedule_label }}):
+            <a href="{% url 'blueprint_detail' blueprint.id %}">view,</a>
+            <a href="{% url 'blueprint_edit' blueprint.id %}">edit,</a>
+            <a href="{% url 'blueprint_clone' blueprint.id %}">clone,</a>
+            {% if show_all %}
+                <a href="{% url 'blueprint_toggle_active' blueprint.id %}?show=all">{% if blueprint.is_active %}deactivate{% else %}activate{% endif %}</a>
+                ({% if blueprint.is_active %}Active{% else %}Inactive{% endif %})
+            {% else %}
+                <a href="{% url 'blueprint_toggle_active' blueprint.id %}">{% if blueprint.is_active %}deactivate{% else %}activate{% endif %}</a>
+            {% endif %}
         </li>
         {% endfor %}
     </ul>

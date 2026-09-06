@@ -4,9 +4,14 @@
 
 {% block header %}
 <h3>Blueprint: {{ blueprint.name }} ({% if blueprint.is_active %}Active{% else %}Inactive{% endif %})</h3>
+<form>
+    <button type="submit" formaction="{% url 'blueprint_detail' blueprint.id %}" formmethod="get">View</button>
+    <button type="submit" formaction="{% url 'blueprint_clone' blueprint.id %}" formmethod="get">Clone</button>
+</form>
 {% endblock %}
 
 {% block form_content %}
+{% include 'blueprint_schedule_fields.html' %}
 <div style="display: flex; gap: 20px;">
     <div style="flex: 1;">
         <div class="table-responsive">
@@ -28,7 +33,7 @@
                     {% for entry in entries %}
                     <tr class="record-row" data-index="{{ forloop.counter0 }}">
                         <td class="drag-handle" draggable="true">⋮⋮</td>
-                        <td><input type="text" name="start{{ forloop.counter0 }}" id="id_start{{ forloop.counter0 }}" value="{{ entry.start|time:'H:i' }}" readonly="readonly" /></td>
+                        <td><input type="text" name="start{{ forloop.counter0 }}" id="id_start{{ forloop.counter0 }}" value="{{ entry.start|time:'H:i' }}" {% if forloop.first %}class="form-control" onblur="setNextStartField('{{ forloop.counter0 }}')"{% else %}readonly="readonly"{% endif %} /></td>
                         <td>
                             <input type="text" name="duration{{ forloop.counter0 }}" id="id_duration{{ forloop.counter0 }}" value="{{ entry.duration|time:'H:i' }}" class="form-control" required onblur="console.log('Existing entry duration blur - counter0:', '{{ forloop.counter0 }}'); setNextStartField('{{ forloop.counter0 }}')">
                         </td>
@@ -36,7 +41,7 @@
                             <input type="text" name="place{{ forloop.counter0 }}" value="{{ entry.place.abbreviation }}" class="form-control" required>
                         </td>
                         <td>
-                            <input type="text" name="abbreviation{{ forloop.counter0 }}" id="id_abbreviation{{ forloop.counter0 }}" value="{{ entry.activity.abbreviation }}" class="form-control" required onblur="checkAbbreviation({{ forloop.counter0 }})">
+                            <input type="text" name="abbreviation{{ forloop.counter0 }}" id="id_abbreviation{{ forloop.counter0 }}" value="{{ entry.activity.abbreviation }}" class="form-control" required onblur="checkAbbreviation(this)">
                         </td>
                         <td>
                             <input type="text" name="description{{ forloop.counter0 }}" id="id_description{{ forloop.counter0 }}" value="{{ entry.activity.description }}" class="form-control" required>
@@ -69,21 +74,22 @@
                     {% with row_num=forloop.counter0|add:entries_count %}
                     <tr class="record-row" data-index="{{ row_num }}">
                         <td class="drag-handle" draggable="true">⋮⋮</td>
-                        <td><input type="text" name="start{{ row_num }}" id="id_start{{ row_num }}" {% if forloop.counter0 == 0 and not entries %}class="form-control" onblur="console.log('New entry start blur - counter0:', '{{ forloop.counter0 }}', 'entries length:', '{{ entries_count }}', 'total:', '{{ row_num }}', 'readonly: false'); setNextStartField('{{ row_num }}')"{% else %}readonly="readonly" onblur="console.log('Start field readonly - counter0:', '{{ forloop.counter0 }}', 'entries length:', '{{ entries_count }}', 'total:', '{{ row_num }}', 'readonly: true');"{% endif %} /></td>
+                        <td><input type="text" name="start{{ row_num }}" id="id_start{{ row_num }}" {% if forloop.counter0 == 0 and not entries %}class="form-control" onblur="setNextStartField('0')"{% else %}readonly="readonly"{% endif %} /></td>
                         <td>
-                            <input type="text" name="duration{{ row_num }}" id="id_duration{{ row_num }}" class="form-control" onblur="console.log('New entry duration blur - counter0:', '{{ forloop.counter0 }}', 'entries length:', '{{ entries_count }}', 'total:', '{{ row_num }}'); setNextStartField('{{ row_num }}')">
+                            <input type="text" name="duration{{ row_num }}" id="id_duration{{ row_num }}" class="form-control" onblur="setNextStartField('{{ row_num }}')">
                         </td>
                         <td>
                             <input type="text" name="place{{ row_num }}" class="form-control">
                         </td>
                         <td>
-                            <input type="text" name="abbreviation{{ row_num }}" id="id_abbreviation{{ row_num }}" class="form-control" onblur="checkAbbreviation({{ row_num }})">
+                            <input type="text" name="abbreviation{{ row_num }}" id="id_abbreviation{{ row_num }}" class="form-control" onblur="checkAbbreviation(this)">
                         </td>
                         <td>
                             <input type="text" name="description{{ row_num }}" id="id_description{{ row_num }}" class="form-control">
                         </td>
                         <td>
                             <select name="parent{{ row_num }}" id="id_parent{{ row_num }}" class="form-control">
+                                <option value="">---------</option>
                                 {% for option in form.parent_list %}
                                 <option value="{{ option.0 }}">{{ option.1 }}</option>
                                 {% endfor %}
@@ -91,6 +97,7 @@
                         </td>
                         <td>
                             <select name="importance{{ row_num }}" id="id_importance{{ row_num }}" class="form-control">
+                                <option value="">---------</option>
                                 {% for option in form.importance_list %}
                                 <option value="{{ option.0 }}">{{ option.1 }}</option>
                                 {% endfor %}
@@ -98,6 +105,7 @@
                         </td>
                         <td>
                             <select name="urgency{{ row_num }}" id="id_urgency{{ row_num }}" class="form-control">
+                                <option value="">---------</option>
                                 {% for option in form.urgency_list %}
                                 <option value="{{ option.0 }}">{{ option.1 }}</option>
                                 {% endfor %}
@@ -124,6 +132,11 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block form_actions %}
+<button type="button" id="add-five-rows">+5</button>
+{{ block.super }}
 {% endblock %}
 
 {% block extra_head %}
@@ -170,6 +183,21 @@
 // Blueprint data from Django context
 const blueprintsData = {{ blueprints_data|safe }};
 const currentBlueprintId = {{ blueprint.id }};
+const parentChoices = [
+{% for option in form.parent_list %}
+    ["{{ option.0|escapejs }}", "{{ option.1|escapejs }}"]{% if not forloop.last %},{% endif %}
+{% endfor %}
+];
+const importanceChoices = [
+{% for option in form.importance_list %}
+    ["{{ option.0|escapejs }}", "{{ option.1|escapejs }}"]{% if not forloop.last %},{% endif %}
+{% endfor %}
+];
+const urgencyChoices = [
+{% for option in form.urgency_list %}
+    ["{{ option.0|escapejs }}", "{{ option.1|escapejs }}"]{% if not forloop.last %},{% endif %}
+{% endfor %}
+];
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize blueprint panel
@@ -209,6 +237,17 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Setting next start field for last entry at index:', lastEntryIndex);
     setNextStartField(lastEntryIndex);
     {% endif %}
+
+    var addFive = document.getElementById('add-five-rows');
+    if (addFive) {
+        addFive.addEventListener('click', addFiveEmptyRows);
+    }
+
+    updateFirstStartEditable();
+    var tbody = document.querySelector('table tbody');
+    if (tbody) {
+        tbody.addEventListener('dragend', updateFirstStartEditable);
+    }
 });
 
 // Phase 3 Step 4 & 5: Blueprint Panel JavaScript Functions
@@ -466,27 +505,72 @@ function ensureEnoughRowsForBlueprint(neededRows) {
     }
 }
 
+function updateFirstStartEditable() {
+    var rows = document.querySelectorAll('.record-row');
+    for (var i = 0; i < rows.length; i++) {
+        var start = rows[i].querySelector('input[id^="id_start"]');
+        if (!start) {
+            continue;
+        }
+        if (i === 0) {
+            start.removeAttribute('readonly');
+            start.classList.add('form-control');
+            start.onblur = function () {
+                setNextStartField(0);
+            };
+        } else {
+            start.setAttribute('readonly', 'readonly');
+            start.onblur = null;
+        }
+    }
+}
+
+function addFiveEmptyRows() {
+    const tbody = document.querySelector('table tbody');
+    if (!tbody) {
+        return;
+    }
+    const currentRows = document.querySelectorAll('.record-row').length;
+    for (let i = 0; i < 5; i++) {
+        tbody.appendChild(createNewBlueprintRow(currentRows + i));
+    }
+    if (currentRows > 0) {
+        setNextStartField(currentRows - 1);
+    }
+    updateBlueprintPanelForBlueprint();
+}
+
+function choicesToOptions(choices) {
+    let html = '';
+    for (let i = 0; i < choices.length; i++) {
+        html += '<option value="' + choices[i][0] + '">' + choices[i][1] + '</option>';
+    }
+    return html;
+}
+
 function createNewBlueprintRow(rowIndex) {
     const row = document.createElement('tr');
     row.className = 'record-row';
     row.setAttribute('data-index', rowIndex);
     
-    // Get options from existing selects for the new row
-    const parentOptions = getBlueprintParentOptions();
-    const importanceOptions = getBlueprintImportanceOptions();
-    const urgencyOptions = getBlueprintUrgencyOptions();
+    const parentOptions = choicesToOptions(parentChoices);
+    const importanceOptions = choicesToOptions(importanceChoices);
+    const urgencyOptions = choicesToOptions(urgencyChoices);
+    const startReadonly = rowIndex === 0 ? '' : ' readonly="readonly"';
+    const startClass = rowIndex === 0 ? ' class="form-control"' : '';
+    const startBlur = rowIndex === 0 ? ' onblur="setNextStartField(\'0\')"' : '';
     
     row.innerHTML = `
         <td class="drag-handle" draggable="true">⋮⋮</td>
-        <td><input type="text" name="start${rowIndex}" id="id_start${rowIndex}" readonly="readonly" /></td>
+        <td><input type="text" name="start${rowIndex}" id="id_start${rowIndex}"${startClass}${startReadonly}${startBlur} /></td>
         <td>
-            <input type="text" name="duration${rowIndex}" id="id_duration${rowIndex}" class="form-control" onblur="console.log('New entry duration blur - counter0:', '${rowIndex}'); setNextStartField('${rowIndex}')">
+            <input type="text" name="duration${rowIndex}" id="id_duration${rowIndex}" class="form-control" onblur="setNextStartField('${rowIndex}')">
         </td>
         <td>
             <input type="text" name="place${rowIndex}" class="form-control">
         </td>
         <td>
-            <input type="text" name="abbreviation${rowIndex}" id="id_abbreviation${rowIndex}" class="form-control" onblur="checkAbbreviation(${rowIndex})">
+            <input type="text" name="abbreviation${rowIndex}" id="id_abbreviation${rowIndex}" class="form-control" onblur="checkAbbreviation(this)">
         </td>
         <td>
             <input type="text" name="description${rowIndex}" id="id_description${rowIndex}" class="form-control">
@@ -508,7 +592,6 @@ function createNewBlueprintRow(rowIndex) {
         </td>
     `;
     
-    // Add duration change event listener for blueprint panel updates
     const durationInput = row.querySelector(`input[name="duration${rowIndex}"]`);
     if (durationInput) {
         durationInput.addEventListener('change', function() {
@@ -518,42 +601,6 @@ function createNewBlueprintRow(rowIndex) {
     }
     
     return row;
-}
-
-function getBlueprintParentOptions() {
-    const parentSelect = document.querySelector('select[name^="parent"]');
-    if (!parentSelect) return '<option value="">---------</option>';
-    
-    let options = '';
-    for (let i = 0; i < parentSelect.options.length; i++) {
-        const option = parentSelect.options[i];
-        options += `<option value="${option.value}">${option.text}</option>`;
-    }
-    return options;
-}
-
-function getBlueprintImportanceOptions() {
-    const importanceSelect = document.querySelector('select[name^="importance"]');
-    if (!importanceSelect) return '<option value="">---------</option>';
-    
-    let options = '';
-    for (let i = 0; i < importanceSelect.options.length; i++) {
-        const option = importanceSelect.options[i];
-        options += `<option value="${option.value}">${option.text}</option>`;
-    }
-    return options;
-}
-
-function getBlueprintUrgencyOptions() {
-    const urgencySelect = document.querySelector('select[name^="urgency"]');
-    if (!urgencySelect) return '<option value="">---------</option>';
-    
-    let options = '';
-    for (let i = 0; i < urgencySelect.options.length; i++) {
-        const option = urgencySelect.options[i];
-        options += `<option value="${option.value}">${option.text}</option>`;
-    }
-    return options;
 }
 
 function updateAllStartTimesFromRow(fromRowIndex) {

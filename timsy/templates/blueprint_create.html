@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h3>{{ title }}</h3>
+
+    {% if source %}
+    <p>Copy of {{ source.name }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" maxlength="200" value="{{ name|default:'' }}" required>
+        </div>
+
+        {% include 'blueprint_schedule_fields.html' %}
+
+        {% if error %}
+            <div>
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <button type="submit">{{ submit_label }}</button>
+            <a href="{% url 'blueprint_list' %}">Cancel</a>
+        </div>
+    </form>
+{% endblock %}
