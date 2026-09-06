@@ -11,7 +11,7 @@ from django.http import Http404
 from django.forms import formset_factory
 
 from timsy.models import Activity, Blueprint, BlueprintEntry, Importance, Parent, Place, Urgency
-from timsy.reports.utils import parse_duration_string
+from timsy.reports.utils import parse_duration_string, local_today
 
 class BlueprintEntryForm(forms.Form):
     """Form for blueprint entries.
@@ -104,10 +104,10 @@ def blueprint_edit_view(request: HttpRequest, id: int) -> HttpResponse:
         if first_start_str:
             # Parse the submitted start time
             first_start_time = datetime.strptime(first_start_str, '%H:%M').time()
-            current_datetime = datetime.combine(date.today(), first_start_time)
+            current_datetime = datetime.combine(local_today(), first_start_time)
         else:
             # Default to midnight if no start time provided
-            current_datetime = datetime.combine(date.today(), time(hour=0, minute=0))
+            current_datetime = datetime.combine(local_today(), time(hour=0, minute=0))
 
         # Process each row until we find an empty duration
         i = 0

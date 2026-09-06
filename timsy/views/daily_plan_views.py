@@ -8,7 +8,7 @@ from ..models.importance import Importance
 from ..models.parent import Parent
 from datetime import date, timedelta, datetime, time
 from django.core.exceptions import ValidationError
-from ..reports.utils import parse_duration_string
+from ..reports.utils import parse_duration_string, local_today
 import json
 from django.db.models import Case, When, Value, IntegerField
 
@@ -19,7 +19,7 @@ def daily_plan_list(request):
     Today's plan is listed first (if available), then the rest ordered
     by date with the most recent first.
     """
-    today = date.today()
+    today = local_today()
     show_all = request.GET.get('show') == 'all'
 
     # Create custom ordering: today's plan first (order=0), then by -date
@@ -120,7 +120,7 @@ def daily_plan_edit(request, year, month, day):
     
     if request.method == 'POST':
         # Start with a datetime at midnight
-        current_datetime = datetime.combine(date.today(), time(hour=0, minute=0))
+        current_datetime = datetime.combine(local_today(), time(hour=0, minute=0))
 
         # Delete all existing entries for this plan
         DailyPlanEntry.objects.filter(plan=plan).delete()

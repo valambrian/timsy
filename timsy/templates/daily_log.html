@@ -3,7 +3,7 @@
 {% block title %}Daily Time Use Log{% endblock %}
 
 {% block content %}
-<h3>Daily Time Log For {{ records.0.start|date:"l, F d, Y" }} (
+<h3>Daily Time Log For {{ report_date|date:"l, F d, Y" }} (
 
   {% if previous %}
     <a href="/timsy/reports/log/{{ previous.year }}/{{ previous.month }}/{{ previous.day }}/">Previous</a>

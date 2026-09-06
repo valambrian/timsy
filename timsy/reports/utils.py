@@ -1,9 +1,23 @@
 from datetime import date, datetime, time, timedelta
 from typing import Optional, Tuple, List, Union
+from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.db.models import QuerySet
+from django.utils import timezone
 
 from ..models import Activity, ActivityRecord
+
+EASTERN_TZ = ZoneInfo('America/New_York')
+
+
+def local_today() -> date:
+    """Return today's calendar date in Eastern.
+
+    Django TIME_ZONE stays UTC so ActivityRecord clock times are not
+    converted. Plans, todos, and report navigation still follow Eastern,
+    including after UTC midnight (8pm EDT / 7pm EST).
+    """
+    return timezone.now().astimezone(EASTERN_TZ).date()
 
 
 def configured_week_start_day() -> int:
@@ -61,7 +75,7 @@ def shift_date(report_date: date, days: int) -> Optional[date]:
         The shifted date, or None if the result would be after today
     """
     new_date = report_date + timedelta(days=days)
-    if new_date > date.today():
+    if new_date > local_today():
         new_date = None
     return new_date
 
@@ -108,7 +122,7 @@ def get_navigation_urls(
             next_date = date(end_date.year + 1, 1, 1)
         else:
             next_date = date(end_date.year, end_date.month + 1, 1)
-        if next_date > date.today():
+        if next_date > local_today():
             next_date = None
 
     if link_token is None:

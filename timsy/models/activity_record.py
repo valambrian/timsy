@@ -1,6 +1,5 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from django.db import models
-from django.utils.timezone import make_aware
 
 from .activity import Activity
 from .place import Place
@@ -147,8 +146,11 @@ class ActivityRecord(models.Model):
         Returns:
             QuerySet: Activity records ordered by start time
         """
-        lower_bound = make_aware(datetime.combine(start_date, time.min))
-        upper_bound = make_aware(datetime.combine(end_date, time.min) + timedelta(days=1))
+        # Day bounds stay on UTC midnight. Activity start times are UTC
+        # timestamps whose clock time is Eastern local time; shifting these
+        # queries to Eastern midnight would regroup overnight rows.
+        lower_bound = datetime.combine(start_date, time.min, tzinfo=timezone.utc)
+        upper_bound = datetime.combine(end_date, time.min, tzinfo=timezone.utc) + timedelta(days=1)
         # lower_bound <= record.start < upper_bound
         return ActivityRecord.objects.filter(start__gte=lower_bound, start__lt=upper_bound).order_by('start')
 

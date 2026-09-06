@@ -29,6 +29,7 @@ def daily_log(request: HttpRequest, year: int, month: int, day: int) -> HttpResp
     next = shift_date(report_date, 1)
     context: Dict[str, Any] = {
         'records': records,
+        'report_date': report_date,
         'previous': previous,
         'next': next
     }
