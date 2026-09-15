@@ -27,10 +27,16 @@
                     <a href="{% url 'daily_plan_view' plan.date.year plan.date.month plan.date.day %}">view,</a>
                     <a href="{% url 'daily_plan_edit' plan.date.year plan.date.month plan.date.day %}">edit,</a>
                     {% if show_all %}
-                        <a href="{% url 'daily_plan_toggle_active' plan.date.year plan.date.month plan.date.day %}?show=all">{% if plan.active %}deactivate{% else %}activate{% endif %}</a>
+                        <a href="{% url 'daily_plan_toggle_active' plan.date.year plan.date.month plan.date.day %}?show=all">{% if plan.active %}deactivate{% else %}activate,{% endif %}</a>
+                        {% if not plan.active %}
+                            <a href="{% url 'daily_plan_delete' plan.date.year plan.date.month plan.date.day %}?show=all">delete</a>
+                        {% endif %}
                         ({% if plan.active %}Active{% else %}Inactive{% endif %})
                     {% else %}
-                        <a href="{% url 'daily_plan_toggle_active' plan.date.year plan.date.month plan.date.day %}">{% if plan.active %}deactivate{% else %}activate{% endif %}</a>
+                        <a href="{% url 'daily_plan_toggle_active' plan.date.year plan.date.month plan.date.day %}">{% if plan.active %}deactivate{% else %}activate,{% endif %}</a>
+                        {% if not plan.active %}
+                            <a href="{% url 'daily_plan_delete' plan.date.year plan.date.month plan.date.day %}">delete</a>
+                        {% endif %}
                     {% endif %}
             </li>
         {% endfor %}

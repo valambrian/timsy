@@ -42,6 +42,7 @@ urlpatterns = [
     path('data/plans/daily/<int:year>/<int:month>/<int:day>/', views.daily_plan_view, name='daily_plan_view'),
     path('data/plans/daily/<int:year>/<int:month>/<int:day>/edit/', views.daily_plan_edit, name='daily_plan_edit'),
     path('data/plans/daily/<int:year>/<int:month>/<int:day>/toggle-active/', views.daily_plan_toggle_active, name='daily_plan_toggle_active'),
+    path('data/plans/daily/<int:year>/<int:month>/<int:day>/delete/', views.daily_plan_delete, name='daily_plan_delete'),
     path('data/plans/weekly/', weekly_plan_views.weekly_plan_list, name='weekly_plan_list'),
     path('data/plans/weekly/latest/', weekly_plan_views.weekly_plan_latest, name='weekly_plan_latest'),
     path('data/plans/weekly/<int:year>/<int:month>/<int:day>/', weekly_plan_views.weekly_plan_edit, name='weekly_plan_edit'),

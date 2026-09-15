@@ -58,6 +58,19 @@ def daily_plan_toggle_active(request, year, month, day):
         url += '?' + urlencode({'show': 'all'})
     return redirect(url)
 
+
+def daily_plan_delete(request, year, month, day):
+    """Delete an inactive daily plan and return to the list."""
+    plan_date = date(year, month, day)
+    plan = get_object_or_404(DailyPlan, date=plan_date, active=False)
+    plan.delete()
+
+    url = reverse('daily_plan_list')
+    if request.GET.get('show') == 'all':
+        url += '?' + urlencode({'show': 'all'})
+    return redirect(url)
+
+
 def daily_plan_create(request):
     """View for creating a new daily plan.
     
@@ -178,12 +191,15 @@ def daily_plan_edit(request, year, month, day):
         # Delete all existing entries for this plan
         DailyPlanEntry.objects.filter(plan=plan).delete()
 
-        # Process each row until we find an empty duration
+        # Process each row; ignore empty or zero-duration records
         i = 0
         while True:
+            if f'duration{i}' not in request.POST:
+                break
             duration_str = request.POST.get(f'duration{i}', '')
             if not duration_str or duration_str in ['0:00', '00:00']:
-                break
+                i += 1
+                continue
 
             # Get form values
             abbreviation = request.POST.get(f'abbreviation{i}', '')
@@ -192,6 +208,9 @@ def daily_plan_edit(request, year, month, day):
             importance = Importance.objects.get(id=request.POST[f'importance{i}'])
             urgency = Urgency.objects.get(id=request.POST[f'urgency{i}'])
             hours, minutes = parse_duration_string(duration_str)
+            if hours == 0 and minutes == 0:
+                i += 1
+                continue
             duration = time(hour=hours, minute=minutes)
             place = Place.objects.get(abbreviation=request.POST[f'place{i}'].upper())
 

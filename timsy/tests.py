@@ -1037,6 +1037,62 @@ class DailyPlanTodoSidebarTests(TestCase):
         self.assertContains(response, tomorrow.strftime('%a %b %d, %Y'))
 
 
+class DailyPlanEditTests(TestCase):
+    """Daily plan editor saves rows and skips zero-duration records."""
+
+    def setUp(self):
+        self.importance = Importance.objects.create(
+            sort_order=1, abbreviation='A', description='High'
+        )
+        self.urgency = Urgency.objects.create(
+            sort_order=1, abbreviation='A', description='Soon'
+        )
+        self.parent = Parent.objects.create(
+            id='WO',
+            sort_order=1,
+            description='Work',
+            importance=self.importance,
+            state=Parent.State.ACTIVE,
+        )
+        self.place = Place.objects.create(
+            abbreviation='H', sort_order=1, description='Home'
+        )
+        self.plan_date = date(2026, 9, 3)
+        self.plan = DailyPlan.objects.create(date=self.plan_date)
+        self.edit_url = reverse(
+            'daily_plan_edit',
+            args=[self.plan_date.year, self.plan_date.month, self.plan_date.day],
+        )
+
+    def _row(self, index, duration, abbreviation, description):
+        return {
+            'duration%d' % index: duration,
+            'abbreviation%d' % index: abbreviation,
+            'description%d' % index: description,
+            'parent%d' % index: self.parent.id,
+            'importance%d' % index: str(self.importance.id),
+            'urgency%d' % index: str(self.urgency.id),
+            'place%d' % index: self.place.abbreviation,
+        }
+
+    def test_edit_skips_zero_duration_rows(self):
+        post = {}
+        post.update(self._row(0, '1:00', 'wo', 'Work'))
+        post.update(self._row(1, '0:00', 'skip', 'Should be ignored'))
+        post.update(self._row(2, '2:00', 'mt', 'Meeting'))
+        post.update(self._row(3, '', '', ''))
+
+        response = self.client.post(self.edit_url, post)
+        self.assertRedirects(response, self.edit_url)
+        entries = list(DailyPlanEntry.objects.filter(plan=self.plan).order_by('start'))
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(entries[0].duration, time(1, 0))
+        self.assertEqual(entries[0].activity.abbreviation, 'wo')
+        self.assertEqual(entries[1].start, time(1, 0))
+        self.assertEqual(entries[1].duration, time(2, 0))
+        self.assertEqual(entries[1].activity.abbreviation, 'mt')
+
+
 class DailyPlanPomodoroTests(TestCase):
     """Pomodoro timer is on today's daily plan view, not on other days."""
 
@@ -1149,3 +1205,72 @@ class DailyPlanListTodayTests(TestCase):
         self.assertContains(response, today_label)
         self.assertNotContains(response, tomorrow_label)
         self.assertEqual(response.context['today'], today)
+
+
+class DailyPlanDeleteTests(TestCase):
+    """Inactive daily plans can be deleted from the list; active ones cannot."""
+
+    def setUp(self):
+        self.plan_date = date(2026, 9, 3)
+        self.plan = DailyPlan.objects.create(date=self.plan_date, active=False)
+        self.delete_url = reverse(
+            'daily_plan_delete',
+            args=[self.plan_date.year, self.plan_date.month, self.plan_date.day],
+        )
+
+    def test_all_list_shows_delete_for_inactive_only(self):
+        active = DailyPlan.objects.create(date=date(2026, 9, 4), active=True)
+        response = self.client.get(reverse('daily_plan_list') + '?show=all')
+        self.assertContains(response, self.delete_url)
+        self.assertNotContains(
+            response,
+            reverse(
+                'daily_plan_delete',
+                args=[active.date.year, active.date.month, active.date.day],
+            ),
+        )
+
+    def test_delete_inactive_plan_removes_it_and_entries(self):
+        importance = Importance.objects.create(
+            sort_order=1, abbreviation='A', description='High'
+        )
+        urgency = Urgency.objects.create(
+            sort_order=1, abbreviation='A', description='Soon'
+        )
+        parent = Parent.objects.create(
+            id='WO',
+            sort_order=1,
+            description='Work',
+            importance=importance,
+            state=Parent.State.ACTIVE,
+        )
+        place = Place.objects.create(
+            abbreviation='H', sort_order=1, description='Home'
+        )
+        activity = Activity.objects.create(
+            sort_order=1,
+            abbreviation='wo',
+            description='Work',
+            parent=parent,
+            importance=importance,
+            urgency=urgency,
+        )
+        DailyPlanEntry.objects.create(
+            plan=self.plan,
+            activity=activity,
+            place=place,
+            start=time(8, 0),
+            duration=time(1, 0),
+        )
+
+        response = self.client.get(self.delete_url + '?show=all')
+        self.assertRedirects(response, reverse('daily_plan_list') + '?show=all')
+        self.assertFalse(DailyPlan.objects.filter(date=self.plan_date).exists())
+        self.assertEqual(DailyPlanEntry.objects.filter(plan=self.plan).count(), 0)
+
+    def test_delete_active_plan_is_rejected(self):
+        self.plan.active = True
+        self.plan.save(update_fields=['active'])
+        response = self.client.get(self.delete_url)
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(DailyPlan.objects.filter(date=self.plan_date).exists())
