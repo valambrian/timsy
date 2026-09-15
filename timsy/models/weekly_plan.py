@@ -180,6 +180,50 @@ class WeeklyPlan(models.Model):
         start = self.week_start - timedelta(days=7)
         return start, start + timedelta(days=6)
 
+    def _activity_records_between(self, start, end):
+        """Return activity records in an inclusive date range.
+
+        Args:
+            start: First day
+            end: Last day
+
+        Returns:
+            QuerySet: ActivityRecord rows with activity loaded
+        """
+        return ActivityRecord.get_records(start, end).select_related('activity')
+
+    def _parent_ids_with_activity_records(self, start, end):
+        """Return parent ids that have non-zero ActivityRecord duration in a range.
+
+        Uses each activity's own parent, not ancestor rollup.
+
+        Args:
+            start: First day
+            end: Last day
+
+        Returns:
+            set: Parent ids
+        """
+        ids = set()
+        for record in self._activity_records_between(start, end):
+            if duration_to_seconds(record.duration):
+                ids.add(record.activity.parent_id)
+        return ids
+
+    def _fact_seconds_between(self, parent_ids, start, end):
+        """Sum ActivityRecord durations in a range for the given parents.
+
+        Args:
+            parent_ids: Parent ids to total
+            start: First day
+            end: Last day
+
+        Returns:
+            dict: parent id to fact seconds
+        """
+        records = self._activity_records_between(start, end)
+        return seconds_by_parent(records, parent_ids)
+
     def parent_ids_with_fact(self):
         """Return parent ids that have non-zero ActivityRecord duration last week.
 
@@ -189,14 +233,17 @@ class WeeklyPlan(models.Model):
             set: Parent ids
         """
         previous_start, previous_end = self.previous_week_bounds()
-        ids = set()
-        records = ActivityRecord.get_records(
-            previous_start, previous_end
-        ).select_related('activity')
-        for record in records:
-            if duration_to_seconds(record.duration):
-                ids.add(record.activity.parent_id)
-        return ids
+        return self._parent_ids_with_activity_records(previous_start, previous_end)
+
+    def parent_ids_with_this_week_fact(self):
+        """Return parent ids that have non-zero ActivityRecord duration this week.
+
+        Uses each activity's own parent, not ancestor rollup.
+
+        Returns:
+            set: Parent ids
+        """
+        return self._parent_ids_with_activity_records(self.week_start, self.week_end())
 
     def scheduled_seconds(self, parent_ids, exclude_date=None):
         """Sum DailyPlanEntry durations this week for the given parents.
@@ -226,10 +273,18 @@ class WeeklyPlan(models.Model):
             dict: parent id to fact seconds
         """
         previous_start, previous_end = self.previous_week_bounds()
-        records = ActivityRecord.get_records(
-            previous_start, previous_end
-        ).select_related('activity')
-        return seconds_by_parent(records, parent_ids)
+        return self._fact_seconds_between(parent_ids, previous_start, previous_end)
+
+    def this_week_fact_seconds(self, parent_ids):
+        """Sum ActivityRecord durations from this week for the given parents.
+
+        Args:
+            parent_ids: Parent ids to total
+
+        Returns:
+            dict: parent id to fact seconds
+        """
+        return self._fact_seconds_between(parent_ids, self.week_start, self.week_end())
 
     @classmethod
     def for_week_start(cls, week_start: date):

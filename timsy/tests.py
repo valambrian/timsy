@@ -717,12 +717,38 @@ class WeeklyPlanTests(TestCase):
         rows, totals = _build_rows(self.week_start, weekly)
         by_id = {row['parent_id']: row for row in rows if row['parent']}
         self.assertEqual(by_id['WO']['budget'], '10:00')
-        self.assertEqual(by_id['WO']['fact'], '00:00')
+        self.assertEqual(by_id['WO']['last_week'], '00:00')
+        self.assertEqual(by_id['WO']['this_week'], '04:00')
         self.assertEqual(by_id['WO-GP']['budget'], '')
         self.assertEqual(by_id['WO-GP']['scheduled'], '00:00')
-        self.assertEqual(by_id['WO-GP']['fact'], '02:30')
+        self.assertEqual(by_id['WO-GP']['last_week'], '02:30')
+        self.assertEqual(by_id['WO-GP']['this_week'], '00:00')
         self.assertNotIn('SL', by_id)
-        self.assertEqual(totals['fact'], '02:30')
+        self.assertEqual(totals['last_week'], '02:30')
+        self.assertEqual(totals['this_week'], '04:00')
+
+    def test_includes_parents_with_this_week_fact_only(self):
+        sleep_activity = Activity.objects.create(
+            sort_order=3,
+            abbreviation='sl',
+            description='Sleep',
+            parent=self.sleep,
+            importance=self.importance,
+            urgency=self.urgency,
+        )
+        ActivityRecord.objects.create(
+            activity=sleep_activity,
+            place=self.place,
+            start=datetime(2026, 8, 29, 22, 0, tzinfo=dt_timezone.utc),
+            duration=time(8, 0),
+        )
+        rows, totals = _build_rows(self.week_start, None)
+        by_id = {row['parent_id']: row for row in rows if row['parent']}
+        self.assertEqual(by_id['SL']['last_week'], '00:00')
+        self.assertEqual(by_id['SL']['this_week'], '08:00')
+        self.assertNotIn('WO', by_id)
+        self.assertEqual(totals['last_week'], '00:00')
+        self.assertEqual(totals['this_week'], '08:00')
 
     def test_save_hours_over_24_and_child_parent_row(self):
         response = self.client.post(self.edit_url, {
@@ -800,11 +826,14 @@ class WeeklyPlanTests(TestCase):
         self.assertEqual(by_id['WO']['budget'], '10:00')
         self.assertEqual(by_id['WO']['scheduled'], '00:00')
         self.assertEqual(by_id['WO']['remaining'], '10:00')
-        self.assertEqual(by_id['WO']['fact'], '00:00')
+        self.assertEqual(by_id['WO']['last_week'], '00:00')
+        self.assertEqual(by_id['WO']['this_week'], '00:00')
         self.assertEqual(by_id['WO-GP']['scheduled'], '03:00')
-        self.assertEqual(by_id['WO-GP']['fact'], '02:30')
+        self.assertEqual(by_id['WO-GP']['last_week'], '02:30')
+        self.assertEqual(by_id['WO-GP']['this_week'], '04:00')
         self.assertEqual(totals['scheduled'], '03:00')
-        self.assertEqual(totals['fact'], '02:30')
+        self.assertEqual(totals['last_week'], '02:30')
+        self.assertEqual(totals['this_week'], '04:00')
 
     def test_program_link_on_editor(self):
         Program.objects.create(parent=self.work, description='Ship weekly plans')
@@ -820,7 +849,11 @@ class WeeklyPlanTests(TestCase):
         parent_index = html.find('<th>Parent</th>')
         importance_index = html.find('<th>Importance</th>')
         program_index = html.find('<th>Program</th>')
+        last_week_index = html.find('<th>Last Week</th>')
+        this_week_index = html.find('<th>This Week</th>')
         self.assertTrue(0 <= parent_index < importance_index < program_index)
+        self.assertTrue(0 <= last_week_index < this_week_index)
+        self.assertNotContains(page, '<th>Fact</th>')
         self.assertContains(page, 'High')
 
     def test_remaining_hours_on_daily_plan_edit(self):

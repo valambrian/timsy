@@ -73,9 +73,10 @@ def _hierarchy_order():
 
 
 def _build_rows(week_start, weekly_plan):
-    """Build editor rows with budget, scheduled, remaining, and fact.
+    """Build editor rows with budget, scheduled, remaining, and week facts.
 
-    Rows are parents with a non-zero budget, scheduled time, or last-week fact.
+    Rows are parents with a non-zero budget, scheduled time, last-week fact,
+    or this-week fact.
 
     Args:
         week_start: First day of the week
@@ -96,7 +97,9 @@ def _build_rows(week_start, weekly_plan):
 
     scratch = WeeklyPlan(week_start=week_start)
     missing_ids = (
-        scratch.parent_ids_with_scheduled() | scratch.parent_ids_with_fact()
+        scratch.parent_ids_with_scheduled()
+        | scratch.parent_ids_with_fact()
+        | scratch.parent_ids_with_this_week_fact()
     ) - set(parents_by_id)
     if missing_ids:
         for parent in Parent.objects.filter(pk__in=missing_ids).select_related(
@@ -107,17 +110,20 @@ def _build_rows(week_start, weekly_plan):
     parents = list(parents_by_id.values())
     parent_ids = [parent.id for parent in parents]
     scheduled = scratch.scheduled_seconds(parent_ids)
-    fact = scratch.fact_seconds(parent_ids)
+    last_week = scratch.fact_seconds(parent_ids)
+    this_week = scratch.this_week_fact_seconds(parent_ids)
     programs = _latest_programs_by_parent(parent_ids)
 
     rows = []
     total_budget = 0
     total_scheduled = 0
-    total_fact = 0
+    total_last_week = 0
+    total_this_week = 0
     for parent in parents:
         budget_seconds = budgets.get(parent.id)
         scheduled_seconds = scheduled.get(parent.id, 0)
-        fact_seconds = fact.get(parent.id, 0)
+        last_week_seconds = last_week.get(parent.id, 0)
+        this_week_seconds = this_week.get(parent.id, 0)
         if budget_seconds is None:
             remaining_seconds = None
             budget_display = ''
@@ -128,7 +134,8 @@ def _build_rows(week_start, weekly_plan):
             remaining_display = seconds_to_hhmm(remaining_seconds)
             total_budget += budget_seconds
         total_scheduled += scheduled_seconds
-        total_fact += fact_seconds
+        total_last_week += last_week_seconds
+        total_this_week += this_week_seconds
         program = programs.get(parent.id)
         rows.append({
             'parent': parent,
@@ -139,7 +146,8 @@ def _build_rows(week_start, weekly_plan):
             'budget': budget_display,
             'scheduled': seconds_to_hhmm(scheduled_seconds),
             'remaining': remaining_display,
-            'fact': seconds_to_hhmm(fact_seconds),
+            'last_week': seconds_to_hhmm(last_week_seconds),
+            'this_week': seconds_to_hhmm(this_week_seconds),
         })
 
     rows.sort(key=lambda row: (order.get(row['parent_id'], 10 ** 9), row['parent_id']))
@@ -154,7 +162,8 @@ def _build_rows(week_start, weekly_plan):
             'budget': '',
             'scheduled': '',
             'remaining': '',
-            'fact': '',
+            'last_week': '',
+            'this_week': '',
         })
 
     totals = {
@@ -163,7 +172,8 @@ def _build_rows(week_start, weekly_plan):
         'remaining': (
             seconds_to_hhmm(total_budget - total_scheduled) if budgets else ''
         ),
-        'fact': seconds_to_hhmm(total_fact),
+        'last_week': seconds_to_hhmm(total_last_week),
+        'this_week': seconds_to_hhmm(total_this_week),
         'budget_seconds': total_budget,
         'week_seconds': WEEK_SECONDS,
         'week_hhmm': seconds_to_hhmm(WEEK_SECONDS),
@@ -238,7 +248,7 @@ def weekly_plan_latest(request):
 def weekly_plan_edit(request, year, month, day):
     """View and save a week's hour budget and analysis note.
 
-    GET: Shows allocations with scheduled, remaining, and fact.
+    GET: Shows allocations with scheduled, remaining, last week, and this week.
     POST action=save: Writes note and allocations.
     POST action=clone: Copies the previous week's allocations.
     """

@@ -64,6 +64,9 @@
 
 {% block header %}
 <h3>Daily Plan: {{ plan.date|date:"F j, Y" }}</h3>
+<form>
+    <button type="submit" formaction="{% url 'daily_plan_view' plan.date.year plan.date.month plan.date.day %}" formmethod="get">View</button>
+</form>
 
 {% if error %}
 <div>{{ error }}</div>

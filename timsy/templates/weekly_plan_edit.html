@@ -27,7 +27,8 @@
                 <th>Budget</th>
                 <th>Scheduled</th>
                 <th>Remaining</th>
-                <th>Fact</th>
+                <th>Last Week</th>
+                <th>This Week</th>
             </tr>
         </thead>
         <tbody>
@@ -57,7 +58,8 @@
                 <td><input type="text" name="hours{{ forloop.counter0 }}" value="{{ row.budget }}" size="6"></td>
                 <td class="timestamp">{{ row.scheduled }}</td>
                 <td class="timestamp">{{ row.remaining }}</td>
-                <td class="timestamp">{{ row.fact }}</td>
+                <td class="timestamp">{{ row.last_week }}</td>
+                <td class="timestamp">{{ row.this_week }}</td>
             </tr>
             {% endfor %}
             <tr>
@@ -67,7 +69,8 @@
                 <td class="timestamp" id="budget-total">{{ totals.budget }}</td>
                 <td class="timestamp">{{ totals.scheduled }}</td>
                 <td class="timestamp">{{ totals.remaining }}</td>
-                <td class="timestamp">{{ totals.fact }}</td>
+                <td class="timestamp">{{ totals.last_week }}</td>
+                <td class="timestamp">{{ totals.this_week }}</td>
             </tr>
         </tbody>
     </table>
